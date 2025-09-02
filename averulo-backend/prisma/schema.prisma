@@ -1,0 +1,81 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+  // keep your custom output if you want:
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  GUEST
+  HOST
+  ADMIN
+}
+
+enum PropStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
+enum BookingStatus {
+  PENDING
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+model User {
+  id         String     @id @default(cuid())
+  email      String     @unique
+  password   String
+  role       Role       @default(GUEST)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  properties Property[]
+  bookings   Booking[]
+}
+
+model Property {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  price       Int
+  city        String
+  lat         Float
+  lng         Float
+  photos      String[]
+  status      PropStatus   @default(PENDING)
+  host        User         @relation(fields: [hostId], references: [id])
+  hostId      String
+  bookings    Booking[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([city])
+  @@index([lat, lng])
+  @@index([status])
+}
+
+model Booking {
+  id          String        @id @default(cuid())
+  property    Property      @relation(fields: [propertyId], references: [id])
+  propertyId  String
+  guest       User          @relation(fields: [guestId], references: [id])
+  guestId     String
+  checkIn     DateTime
+  checkOut    DateTime
+  amount      Int
+  currency    String        @default("NGN")
+  status      BookingStatus @default(PENDING)
+  paystackRef String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([guestId])
+  @@index([propertyId])
+  @@index([status])
+}

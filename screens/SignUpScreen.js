@@ -4,15 +4,15 @@ import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import { useLayoutEffect, useState } from 'react';
 import {
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -46,7 +46,7 @@ export default function SignUpScreen() {
   if (!allFieldsFilled) return;
 
   try {
-    await axios.post('http://192.168.1.170:5050/api/send-otp', { email });
+    await axios.post('https://averulo-backend.onrender.com/api/send-otp', { email });
 
     navigation.navigate('OtpScreen', {
       name,

@@ -1,108 +1,120 @@
-import cors from 'cors';
-import express from 'express';
-import multer from 'multer';
-import nodemailer from 'nodemailer';
+// index.js (CommonJS, aligned with controllers/routes we prepped)
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const multer = require('multer');
+const nodemailer = require('nodemailer');
+const rateLimit = require('express-rate-limit');
+
+const authRoutes = require('./routes/auth');
+const propertyRoutes = require('./routes/properties');
+const bookingRoutes = require('./routes/bookings');
 
 const app = express();
-const PORT = 5050;
+const PORT = process.env.PORT || 4000;
 
-
-
-const upload = multer({ dest: 'uploads/' }); // creates 'uploads' folder if not exists
-
-// Route to handle ID upload (can accept two files: front and back)
-app.post('/api/upload-id', upload.fields([
-  { name: 'front', maxCount: 1 },
-  { name: 'back', maxCount: 1 }
-]), (req, res) => {
-  const { email, idType } = req.body;
-  const files = req.files; // { front: [file], back: [file] }
-
-  if (!email || !idType || !files.front) {
-    return res.status(400).json({ success: false, message: 'Missing required fields or files.' });
-  }
-
-  // Here, you can save info to DB, or just store the files for now.
-  console.log('Received:', email, idType, files);
-
-  res.json({ success: true, message: 'ID uploaded successfully!' });
-});
-
-
-// Simple in-memory store for demo (use Redis or DB for prod)
-const otpStore = {};
-
+// ---------- Middleware ----------
 app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type'],
+  origin: process.env.CLIENT_ORIGIN || '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
 
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'Backend is reachable!' });
+// Basic rate-limit for OTP endpoints (reduce abuse)
+const otpLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 5,                  // 5 requests per window per IP
 });
 
-// Send OTP Route
-app.post('/api/send-otp', async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+// ---------- Health ----------
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, time: new Date().toISOString() });
+});
 
+// ---------- File Upload (KYC/ID) ----------
+const upload = multer({ dest: process.env.UPLOADS_DIR || 'uploads/' });
+// Accept two files: front/back
+app.post('/api/upload-id', upload.fields([
+  { name: 'front', maxCount: 1 },
+  { name: 'back',  maxCount: 1 }
+]), (req, res) => {
+  const { email, idType } = req.body;
+  const files = req.files || {};
+  if (!email || !idType || !files.front) {
+    return res.status(400).json({ success: false, message: 'Missing required fields or files.' });
+  }
+  // TODO: persist metadata in DB (userId, idType, file paths)
+  return res.json({ success: true, message: 'ID uploaded successfully!' });
+});
+
+// ---------- OTP (email) ----------
+const otpStore = new Map(); // TODO: use Redis in production
+
+function setOtp(email, code, ttlMs) {
+  otpStore.set(email, { code, expires: Date.now() + ttlMs });
+}
+function getOtp(email) {
+  return otpStore.get(email);
+}
+function clearOtp(email) {
+  otpStore.delete(email);
+}
+
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASS = process.env.EMAIL_PASS;
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: { user: EMAIL_USER, pass: EMAIL_PASS },
+});
+
+// Send OTP
+app.post('/api/send-otp', otpLimiter, async (req, res) => {
   try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
+
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // Store OTP for the email (expires in 5 mins)
-    otpStore[email] = {
-      code: otp,
-      expires: Date.now() + 5 * 60 * 1000,
-    };
-
-    // Send email with Nodemailer (use your Gmail app password)
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: 'spacebierd@gmail.com',
-        pass: 'iozlpmqctocaqpme',
-      },
-    });
+    const ttlMinutes = Number(process.env.OTP_TTL_MINUTES || 5);
+    setOtp(email, otp, ttlMinutes * 60 * 1000);
 
     await transporter.sendMail({
-      from: '"Averulo App" <spacebierd@gmail.com>',
+      from: `"Averulo" <${EMAIL_USER}>`,
       to: email,
       subject: 'Your OTP Code',
-      html: `<h3>Your OTP is: ${otp}</h3>`,
+      html: `<p>Your OTP is:</p><h2>${otp}</h2><p>Valid for ${ttlMinutes} minutes.</p>`,
     });
 
-    console.log('OTP sent to:', email, otp);
-    return res.status(200).json({ success: true, message: 'OTP sent!' });
-  } catch (error) {
-    console.error('Error sending OTP:', error);
+    return res.json({ success: true, message: 'OTP sent' });
+  } catch (err) {
+    console.error('send-otp error:', err);
     return res.status(500).json({ success: false, message: 'Failed to send OTP' });
   }
 });
 
-// Verify OTP Route
+// Verify OTP
 app.post('/api/verify-otp', (req, res) => {
   const { email, otp } = req.body;
   if (!email || !otp) return res.status(400).json({ success: false, message: 'Missing email or otp' });
 
-  const record = otpStore[email];
-  if (!record) {
-    return res.status(400).json({ success: false, message: 'No OTP found for this email' });
-  }
+  const record = getOtp(email);
+  if (!record) return res.status(400).json({ success: false, message: 'No OTP for this email' });
   if (record.expires < Date.now()) {
-    delete otpStore[email];
-    return res.status(400).json({ success: false, message: 'OTP expired, please request again.' });
+    clearOtp(email);
+    return res.status(400).json({ success: false, message: 'OTP expired' });
   }
-  if (record.code !== otp) {
-    return res.status(400).json({ success: false, message: 'Invalid OTP' });
-  }
+  if (record.code !== otp) return res.status(400).json({ success: false, message: 'Invalid OTP' });
 
-  // Valid OTP — cleanup and confirm
-  delete otpStore[email];
-  return res.json({ success: true, message: 'OTP Verified!' });
+  clearOtp(email);
+  return res.json({ success: true, message: 'OTP Verified' });
 });
 
+// ---------- Core MVP Routes ----------
+app.use('/api/auth', authRoutes);
+app.use('/api/properties', propertyRoutes);
+app.use('/api/bookings', bookingRoutes);
+
+// ---------- Start ----------
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
+  console.log(`🚀 API running on http://localhost:${PORT}`);
 });

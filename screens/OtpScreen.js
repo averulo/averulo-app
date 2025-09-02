@@ -3,15 +3,15 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import {
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function OtpScreen() {
@@ -62,7 +62,7 @@ export default function OtpScreen() {
       return;
     }
     try {
-      const res = await axios.post('http://192.168.1.170:5050/api/verify-otp', {
+      const res = await axios.post('https://averulo-backend.onrender.com/api/verify-otp', {
         email,
         otp,
       });
