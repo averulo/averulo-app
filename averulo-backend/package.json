@@ -3,10 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-  "dev": "nodemon index.js",
-  "start": "node index.js",
-  "migrate": "prisma migrate dev --name init",
-  "seed": "node prisma/seed.js"
+  "dev": "node index.js",
+  "lint": "echo \"No linting yet\" && exit 0",
+  "test": "echo \"No tests yet\" && exit 0"
 },
   "keywords": [],
   "author": "",
