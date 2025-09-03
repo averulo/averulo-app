@@ -10,3 +10,4 @@ Expo React Native client for the Averulo project.
 ```bash
 git clone https://github.com/averulo/averulo-app.git
 cd averulo-app
+# Test CI trigger
