@@ -44,3 +44,8 @@ dist/
 .DS_Store
 
 !.env.example
+node_modules/
+.expo/
+.env
+dist/
+build/
