@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "node index.js",
-    "migrate": "prisma migrate dev --name init",
-    "seed": "node prisma/seed.js"
-  },
+  "dev": "nodemon index.js",
+  "start": "node index.js",
+  "migrate": "prisma migrate dev --name init",
+  "seed": "node prisma/seed.js"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",

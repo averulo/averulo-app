@@ -3,131 +3,129 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+  Alert,
+  KeyboardAvoidingView, Platform, SafeAreaView, ScrollView,
+  StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
+
+const API = process.env.EXPO_PUBLIC_API_BASE_URL; // <-- .env
 
 export default function OtpScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const email = route.params?.email; // pass from Login screen!
   const [code, setCode] = useState(['', '', '', '', '', '']);
-  const [timer, setTimer] = useState(10);
-  const inputRefs = useRef([]);
-  const email = route.params?.email || 'akinbikehinde365@gmail.com';
+  const [timer, setTimer] = useState(30);
+  const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const inputs = useRef([]);
 
   useEffect(() => {
-    setCode(['', '', '', '', '', '']); // Reset on screen load
-    setTimer(10);
-    const interval = setInterval(() => {
-      setTimer((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(interval);
+    setCode(['', '', '', '', '', '']);
+    setTimer(30);
+    const id = setInterval(() => setTimer(t => (t > 0 ? t - 1 : 0)), 1000);
+    return () => clearInterval(id);
   }, []);
 
-  // Helper: all fields filled?
-  const allFilled = code.every(d => d.length === 1);
+  const allFilled = code.every((d) => d.length === 1);
 
-  // Input handler with focus control
-  const handleChange = (text, index) => {
-    if (/^\d?$/.test(text)) {
-      const newCode = [...code];
-      newCode[index] = text;
-      setCode(newCode);
+  const handleChange = (text, i) => {
+    if (!/^\d?$/.test(text)) return;
+    const next = [...code];
+    next[i] = text;
+    setCode(next);
+    if (text && i < 5) inputs.current[i + 1]?.focus();
+    if (next.join('').length === 6) handleSubmit(next.join(''));
+  };
 
-      if (text.length === 1 && index < 5) {
-        inputRefs.current[index + 1].focus();
-      }
+  const handleKeyPress = (e, i) => {
+    if (e.nativeEvent.key === 'Backspace' && code[i] === '' && i > 0) {
+      inputs.current[i - 1]?.focus();
     }
   };
 
-  // Handle backspace to auto-focus previous input
-  const handleKeyPress = (e, index) => {
-    if (e.nativeEvent.key === 'Backspace' && code[index] === '' && index > 0) {
-      inputRefs.current[index - 1].focus();
-    }
-  };
-
-  // Submit OTP
-  const handleContinue = async () => {
-    const otp = code.join('');
-    if (otp.length !== 6) {
-      alert('Please enter all 6 digits');
-      return;
-    }
+  const handleSubmit = async (otp) => {
+    if (!API) return Alert.alert('Config', 'Missing EXPO_PUBLIC_API_BASE_URL');
+    if (!email) return Alert.alert('Error', 'No email provided');
     try {
-      const res = await axios.post('https://averulo-backend.onrender.com/api/verify-otp', {
-        email,
-        otp,
-      });
-      if (res.data.success) {
+      setLoading(true);
+      const res = await axios.post(`${API}/verify-otp`, { email, otp });
+      if (res.data?.success) {
+        Alert.alert('Verified', 'OTP verified successfully');
         navigation.navigate('UserVerification', { email });
       } else {
-        alert(res.data.message || 'Invalid OTP');
+        Alert.alert('Invalid', res.data?.message || 'Invalid OTP');
       }
     } catch (err) {
-      alert('Failed to verify OTP. Try again.');
+      Alert.alert('Failed', 'Could not verify OTP. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resend = async () => {
+    if (!API) return Alert.alert('Config', 'Missing EXPO_PUBLIC_API_BASE_URL');
+    if (!email) return Alert.alert('Error', 'No email provided');
+    try {
+      setResending(true);
+      await axios.post(`${API}/send-otp`, { email });
+      setTimer(30);
+      Alert.alert('Sent', 'A new code has been sent.');
+    } catch {
+      Alert.alert('Error', 'Failed to resend code.');
+    } finally {
+      setResending(false);
     }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        style={styles.flexContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backArrow}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back}>
             <Ionicons name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>
-          <View style={styles.centerContent}>
-            <Text style={styles.title}>OTP Confirmation</Text>
-            <View style={{ marginBottom: 16 }} />
-            <Text style={styles.subText}>A 6 digit code has been sent to your email</Text>
-            <View style={{ marginBottom: 16 }} />
-            <Text style={styles.emailText}>
-              Enter code sent to <Text style={styles.emailBold}>{email}</Text>
-            </Text>
-            <Text style={styles.noteText}>
-              Don’t have access to this number?{' '}
-              <Text style={styles.link}>Use a different Email address</Text>
-            </Text>
-            <View style={{ marginBottom: 16 }} />
-            <View style={styles.codeInputWrapper}>
-              {code.map((digit, index) => (
-                <TextInput
-                  key={index}
-                  ref={el => (inputRefs.current[index] = el)}
-                  keyboardType="number-pad"
-                  maxLength={1}
-                  style={styles.codeInput}
-                  value={digit}
-                  onChangeText={text => handleChange(text, index)}
-                  onKeyPress={e => handleKeyPress(e, index)}
-                  autoFocus={index === 0}
-                />
-              ))}
-            </View>
-            <Text style={styles.timerText}>
-              You can request a code in <Text style={{ fontWeight: 'bold' }}>{timer} secs</Text>
-            </Text>
+
+          <Text style={styles.title}>OTP Confirmation</Text>
+          <Text style={styles.sub}>A 6-digit code has been sent to</Text>
+          <Text style={styles.email}>{email}</Text>
+
+          <View style={styles.inputsRow}>
+            {code.map((digit, i) => (
+              <TextInput
+                key={i}
+                ref={(el) => (inputs.current[i] = el)}
+                style={styles.input}
+                value={digit}
+                onChangeText={(t) => handleChange(t, i)}
+                onKeyPress={(e) => handleKeyPress(e, i)}
+                maxLength={1}
+                keyboardType="number-pad"
+                autoFocus={i === 0}
+                textContentType="oneTimeCode"
+              />
+            ))}
           </View>
+
+          <Text style={styles.timer}>
+            {timer > 0 ? `Resend code in ${timer}s` : 'Didn’t get it?'}
+          </Text>
+
+          <TouchableOpacity
+            onPress={resend}
+            disabled={timer > 0 || resending}
+            style={[styles.linkBtn, (timer > 0 || resending) && { opacity: 0.5 }]}
+          >
+            <Text style={styles.linkText}>{resending ? 'Resending…' : 'Resend code'}</Text>
+          </TouchableOpacity>
         </ScrollView>
+
         <TouchableOpacity
-          style={[
-            styles.continueBtn,
-            !allFilled && { opacity: 0.5 }
-          ]}
-          onPress={handleContinue}
-          disabled={!allFilled}
+          style={[styles.cta, (!allFilled || loading) && { opacity: 0.6 }]}
+          disabled={!allFilled || loading}
+          onPress={() => handleSubmit(code.join(''))}
         >
-          <Text style={styles.continueText}>Continue</Text>
+          <Text style={styles.ctaText}>{loading ? 'Verifying…' : 'Continue'}</Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -135,34 +133,23 @@ export default function OtpScreen() {
 }
 
 const styles = StyleSheet.create({
-  // ...same as your previous style...
-  safeArea: { flex: 1, backgroundColor: 'white' },
-  flexContainer: { flex: 1 },
-  scrollContent: { paddingHorizontal: 24, paddingTop: 20, flexGrow: 1 },
-  centerContent: { justifyContent: 'center' },
-  backArrow: { marginBottom: 12 },
-  title: { fontSize: 26, fontWeight: 'bold', marginBottom: 0, textAlign: 'left' },
-  subText: { fontSize: 16, color: '#333' },
-  emailText: { fontSize: 16, marginBottom: 4 },
-  emailBold: { fontWeight: 'bold' },
-  noteText: { fontSize: 14, color: '#333', marginBottom: 24 },
-  link: { color: '#000A63', textDecorationLine: 'underline' },
-  codeInputWrapper: {
-    flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24, marginTop: 8,
+  safeArea: { flex: 1, backgroundColor: '#fff' },
+  flex: { flex: 1 },
+  content: { paddingHorizontal: 24, paddingTop: 20, flexGrow: 1 },
+  back: { marginBottom: 12 },
+  title: { fontSize: 26, fontWeight: 'bold', marginBottom: 8 },
+  sub: { fontSize: 16, color: '#333' },
+  email: { fontSize: 16, fontWeight: 'bold', marginBottom: 24 },
+  inputsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  input: {
+    width: 48, height: 48, borderRadius: 8, borderWidth: 1, borderColor: '#ccc',
+    textAlign: 'center', fontSize: 20, backgroundColor: '#f0f0f0',
   },
-  codeInput: {
-    borderWidth: 1, borderColor: '#ccc', width: 48, height: 48, textAlign: 'center',
-    fontSize: 20, borderRadius: 6, backgroundColor: '#f0f0f0',
+  timer: { textAlign: 'center', color: '#333', marginTop: 8, marginBottom: 8 },
+  linkBtn: { alignSelf: 'center', paddingVertical: 6, paddingHorizontal: 12 },
+  linkText: { color: '#000A63', textDecorationLine: 'underline', fontWeight: '600' },
+  cta: {
+    backgroundColor: '#000A63', paddingVertical: 16, margin: 24, borderRadius: 10, alignItems: 'center',
   },
-  timerText: { fontSize: 14, textAlign: 'center', color: '#333', marginBottom: 32 },
-  continueBtn: {
-    backgroundColor: '#000A63',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginHorizontal: 24,
-    marginBottom: 24,
-  },
-  continueText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  ctaText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });

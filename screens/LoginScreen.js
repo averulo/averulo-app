@@ -11,7 +11,7 @@ import GoogleIcon from '../assets/icons/google.png';
 
 const API = process.env.EXPO_PUBLIC_API_BASE_URL; // from .env
 console.log('API =', API);
-
+console.log('API from env:', process.env.EXPO_PUBLIC_API_BASE_URL);
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [isFocused, setIsFocused] = useState(false);

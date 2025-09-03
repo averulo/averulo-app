@@ -1,20 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
-import axios from 'axios';
 import { useLayoutEffect, useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+  Alert, KeyboardAvoidingView, Platform, Pressable,
+  ScrollView, StyleSheet, Text, TextInput, View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const API = process.env.EXPO_PUBLIC_API_BASE_URL || '';
 
 export default function SignUpScreen() {
   const navigation = useNavigation();
@@ -24,50 +18,84 @@ export default function SignUpScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [focusedField, setFocusedField] = useState('');
   const [isPasswordVisible, setPasswordVisible] = useState(false);
   const [isConfirmVisible, setConfirmVisible] = useState(false);
-
-  const isStrongPassword = password.length >= 8;
-  const allFieldsFilled =
-    name  && email && dob && isStrongPassword && confirmPassword === password;
+  const [focusedField, setFocusedField] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useLayoutEffect(() => {
-    navigation.setOptions({ headerShown: false });
-  }, []);
+    // @ts-ignore
+    navigation.setOptions?.({ headerShown: false });
+  }, [navigation]);
+
+  const isValidEmail = (e) => /\S+@\S+\.\S+/.test(e);
+  const canSend = isValidEmail(email); // ONLY email gates the button
 
   const formatDate = (date) => {
     if (!date) return '';
     const d = new Date(date);
-    return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
   };
 
   const handleSubmit = async () => {
-  if (!allFieldsFilled) return;
+    console.log('[PRESS] Continue tapped. canSend=', canSend, 'loading=', loading);
+    if (!canSend) {
+      Alert.alert('Invalid email', 'Enter a valid email to continue.');
+      return;
+    }
+    if (!API) {
+      Alert.alert('Missing API', 'EXPO_PUBLIC_API_BASE_URL is not set. Check .env and restart Expo.');
+      return;
+    }
 
-  try {
-    await axios.post('https://averulo-backend.onrender.com/api/send-otp', { email });
+    try {
+      setLoading(true);
+      console.log('[NETWORK] POST', `${API}/send-otp`, { email });
 
-    navigation.navigate('OtpScreen', {
-      name,
-      email,
-      dob: formatDate(dob),
-    });
-  } catch (err) {
-    console.error('Failed to send OTP', err);
-    alert('Failed to send OTP. Please try again.')
-    // Optionally show error toast
-  }
-};
+      const res = await fetch(`${API}/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      let data = {};
+      try { data = await res.json(); } catch { /* ignore parse errors */ }
+
+      console.log('[NETWORK] status:', res.status, 'data:', data);
+
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || `Failed to send OTP (${res.status})`);
+      }
+
+      // @ts-ignore
+      navigation.navigate('OtpScreen', {
+        email,
+        name,
+        dob: formatDate(dob),
+      });
+    } catch (e) {
+      console.log('[ERROR] send-otp:', e);
+      Alert.alert('Error', String(e?.message || e));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
-      <Text style={styles.authSwitch}>Log in or Sign up</Text>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <SafeAreaView style={styles.safe}>
+      {/* Show API value so we KNOW we’re hitting the right place */}
+      <Text style={styles.debug}>API: {API || '(not set)'}</Text>
+
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          // ensure scroll content doesn't sit on top of footer
+          style={{ flex: 1 }}
+        >
           <Text style={styles.title}>Sign up</Text>
 
           <Text style={styles.label}>Name</Text>
@@ -81,16 +109,17 @@ export default function SignUpScreen() {
           />
 
           <Text style={styles.label}>Email</Text>
-            <TextInput
+          <TextInput
             placeholder="Email address"
             keyboardType="email-address"
             autoCapitalize="none"
+            autoCorrect={false}
             style={[styles.input, focusedField === 'email' && styles.focusedInput]}
             value={email}
             onChangeText={setEmail}
             onFocus={() => setFocusedField('email')}
             onBlur={() => setFocusedField('')}
-            />
+          />
 
           <Text style={styles.label}>Date of birth (mm/dd/yyyy)</Text>
           <Pressable onPress={() => setShowPicker(true)} style={styles.datePicker}>
@@ -105,13 +134,14 @@ export default function SignUpScreen() {
               value={dob || new Date()}
               mode="date"
               display="default"
-              onChange={(event, selectedDate) => {
+              onChange={(_, selectedDate) => {
                 setShowPicker(false);
                 if (selectedDate) setDob(selectedDate);
               }}
             />
           )}
 
+          {/* Keep password fields for visuals — NOT required to send OTP */}
           <Text style={styles.label}>Password</Text>
           <View style={styles.passwordWrapper}>
             <TextInput
@@ -123,15 +153,10 @@ export default function SignUpScreen() {
               onFocus={() => setFocusedField('password')}
               onBlur={() => setFocusedField('')}
             />
-            <TouchableOpacity onPress={() => setPasswordVisible(!isPasswordVisible)}>
+            <Pressable onPress={() => setPasswordVisible(!isPasswordVisible)}>
               <Ionicons name={isPasswordVisible ? 'eye-off' : 'eye'} size={20} color="#888" />
-            </TouchableOpacity>
+            </Pressable>
           </View>
-          {password ? (
-            <Text style={{ color: isStrongPassword ? 'green' : 'red', marginBottom: 10 }}>
-              {isStrongPassword ? '✓ Password Strength' : 'Password must be at least 8 characters'}
-            </Text>
-          ) : null}
 
           <Text style={styles.label}>Confirm Password</Text>
           <View style={styles.passwordWrapper}>
@@ -144,32 +169,36 @@ export default function SignUpScreen() {
               onFocus={() => setFocusedField('confirmPassword')}
               onBlur={() => setFocusedField('')}
             />
-            <TouchableOpacity onPress={() => setConfirmVisible(!isConfirmVisible)}>
+            <Pressable onPress={() => setConfirmVisible(!isConfirmVisible)}>
               <Ionicons name={isConfirmVisible ? 'eye-off' : 'eye'} size={20} color="#888" />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <Text style={styles.agreement}>
-            By selecting Continue, I agree to Averulo’s{' '}
-            <Text style={styles.link}>Terms of Service</Text>,{' '}
+            By selecting Continue, I agree to Averulo’s <Text style={styles.link}>Terms of Service</Text>,{' '}
             <Text style={styles.link}>Payments Terms of Service</Text>, and{' '}
             <Text style={styles.link}>Nondiscretionary Policy</Text>, and acknowledge the{' '}
             <Text style={styles.link}>Privacy Policy</Text>.
           </Text>
+
+          {/* Add bottom spacer so content isn't hidden behind the sticky footer */}
+          <View style={{ height: 100 }} />
         </ScrollView>
 
-        <View style={{ padding: 20 }}>
-          <TouchableOpacity
-            disabled={!allFieldsFilled}
-            style={[
-              styles.continueBtn,
-              { backgroundColor: allFieldsFilled ? '#000A63' : '#A5B4FC' },
-            ]}
+        {/* Sticky footer button that ALWAYS gets touches */}
+        <View style={styles.footer} pointerEvents="box-none">
+          <Pressable
             onPress={handleSubmit}
+            onPressIn={() => console.log('[PRESS] onPressIn')}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            disabled={!canSend || loading}
+            style={[
+              styles.cta,
+              (!canSend || loading) ? styles.ctaDisabled : styles.ctaEnabled,
+            ]}
           >
-            <Text style={styles.continueText}>Continue</Text>
-        
-          </TouchableOpacity>
+            <Text style={styles.ctaText}>{loading ? 'Sending…' : 'Continue'}</Text>
+          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -177,83 +206,44 @@ export default function SignUpScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 20,
-    backgroundColor: '#fff',
-    paddingBottom: 40,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    marginBottom: 24,
-    marginTop: 40,
-  },
-  label: {
-    fontSize: 14,
-    marginBottom: 6,
-    color: '#333',
-  },
+  safe: { flex: 1, backgroundColor: '#fff' },
+  flex: { flex: 1 },
+  debug: { textAlign: 'center', fontSize: 12, color: '#666', paddingTop: 6 },
+  container: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 0 },
+  title: { fontSize: 26, fontWeight: 'bold', marginVertical: 16 },
+  label: { fontSize: 14, marginBottom: 6, color: '#333' },
   input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    fontSize: 16,
+    borderWidth: 1, borderColor: '#ccc', borderRadius: 10,
+    paddingVertical: 12, paddingHorizontal: 16, marginBottom: 16, fontSize: 16,
   },
-  plainInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#000',
-  },
-  focusedInput: {
-    borderColor: '#9333EA',
-  },
+  focusedInput: { borderColor: '#9333EA' },
   datePicker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderColor: '#ccc',
-    borderWidth: 1,
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 20,
-    justifyContent: 'space-between',
+    flexDirection: 'row', alignItems: 'center', borderColor: '#ccc', borderWidth: 1,
+    padding: 12, borderRadius: 10, marginBottom: 20, justifyContent: 'space-between',
   },
   passwordWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 20,
+    flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#ccc',
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 20,
   },
-  agreement: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 10,
-    marginBottom: 20,
+  plainInput: { flex: 1, fontSize: 16, color: '#000' },
+  agreement: { fontSize: 12, color: '#666', marginTop: 10, marginBottom: 12 },
+  link: { color: '#000A63', fontWeight: '500' },
+
+  footer: {
+    position: 'absolute',
+    left: 0, right: 0, bottom: 0,
+    padding: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#e5e7eb',
   },
-  link: {
-    color: '#000A63',
-    fontWeight: '500',
-  },
-  continueBtn: {
-    paddingVertical: 16,
+  cta: {
+    height: 52,
     borderRadius: 10,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  continueText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  authSwitch: {
-    fontSize: 14,
-    color: '#888',
-    textAlign: 'center',
-    marginTop: 12,
-  },
+  ctaEnabled: { backgroundColor: '#000A63' },
+  ctaDisabled: { backgroundColor: '#A5B4FC' },
+  ctaText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });

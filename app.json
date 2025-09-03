@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yele.averuloapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -44,12 +45,6 @@
       "eas": {
         "projectId": "e91af410-469e-4ed4-a169-34a44278e3a3"
       }
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/e91af410-469e-4ed4-a169-34a44278e3a3"
     }
   }
 }
