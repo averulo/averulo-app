@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mobile_app:
+    name: Mobile App (Expo)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Lint (if script exists)
+        run: |
+          if jq -e '.scripts.lint' package.json > /dev/null; then
+            npm run lint
+          else
+            echo "No lint script; skipping."
+          fi
+
+      - name: Test (if script exists)
+        run: |
+          if jq -e '.scripts.test' package.json > /dev/null; then
+            npm test --ignore-scripts
+          else
+            echo "No test script; skipping."
+          fi
+
+  backend:
+    name: Backend (Node/Express)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: averulo-backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            averulo-backend/package-lock.json
+
+      - name: Create minimal .env for CI
+        run: |
+          cat > .env <<'ENV'
+          PORT=4000
+          NODE_ENV=test
+          CLIENT_ORIGIN=http://localhost:19006
+          JWT_SECRET=ci_secret
+          JWT_EXPIRES_IN=7d
+          OTP_TTL_MINUTES=5
+          EMAIL_USER=dummy@example.com
+          EMAIL_PASS=dummy
+          PAYSTACK_SECRET_KEY=sk_test_dummy
+          PAYSTACK_PUBLIC_KEY=pk_test_dummy
+          UPLOADS_DIR=uploads
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ci
+          ENV
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Lint (if script exists)
+        run: |
+          if jq -e '.scripts.lint' package.json > /dev/null; then
+            npm run lint
+          else
+            echo "No lint script; skipping."
+          fi
+
+      - name: Test (if script exists)
+        run: |
+          if jq -e '.scripts.test' package.json > /dev/null; then
+            npm test --ignore-scripts
+          else
+            echo "No test script; skipping."
+          fi
