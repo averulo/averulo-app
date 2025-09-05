@@ -1,81 +1,114 @@
-Averulo App – Developer Onboarding 🚀
+🚀 Averulo Backend – Developer Onboarding
 
-Welcome to the Averulo App team!
-Follow these steps to set up your environment and start contributing.
+Welcome to the Averulo Backend!
+This guide helps you get the project running locally and test APIs with Postman.
 
-1. Clone the Repository
+1. Clone the repository
 
-Clone the code to your machine:
+git clone https://github.com/averulo
+cd averulo-backend
 
-git clone https://github.com/averulo/averulo-app.git
-cd averulo-app
-
-2. Install Dependencies
-
-Make sure you have Node.js v18+ installed, then install packages:
+2. Install dependencies
 
 npm install
 
-3. Environment Variables
+3. Set up environment variables
 
-We don’t commit secrets.
-Copy the example file:
+Create a .env file at the project root. Minimum required keys:
 
-cp .env.example .env
-
-Then fill in .env with the actual values (shared privately by Kehinde):
-
-
-API_BASE_URL=http://192.168.xxx.xxx:4000/api
-PAYSTACK_PUBLIC_KEY=pk_test_xxxxx
+# Server
+PORT=4000
 APP_ENV=development
+CORS_ORIGIN=http://localhost:3000
 
-4. Run the App with Expo
+# JWT
+JWT_SECRET=dev-secret
+JWT_EXPIRES_IN=7d
 
-Start Metro bundler:
+# Database
+DATABASE_URL="postgresql://<user>:<password>@localhost:5432/averulo"
 
-npx expo start
+# Paystack
+PAYSTACK_SECRET_KEY=sk_test_xxxxxxxx
+PAYSTACK_PUBLIC_KEY=pk_test_xxxxxxxx
 
-	•	Press i → run iOS simulator
-	•	Press a → run Android emulator
-	•	Scan the QR code with Expo Go app → run on your phone
+# SMTP (optional for OTP emails, else dev mode fallback is used)
+SMTP_HOST=smtp.mailtrap.io
+SMTP_PORT=2525
+SMTP_USER=xxxxxxx
+SMTP_PASS=xxxxxxx
+EMAIL_FROM="Averulo <no-reply@averulo.local>"
 
+⚠️  Important: never commit your real .env to GitHub.
 
-5. iOS Development Build (for iPhones)
+4. Database setup
 
-If you want to run directly on your iPhone:
+Run migrations with Prisma:
 
-npx expo run:ios
+npx prisma migrate dev
+
+Optional: generate Prisma client after changes:
+
+npx prisma generate
+
+5. Start the backend
+
+npm run dev
+
+Backend runs on:
+👉 http://localhost:4000
+
+Health check:
+
+curl http://localhost:4000/api/test
+
+6. Postman setup
+
+We provide ready-made files in postman/ folder:
+ • Averulo_Backend_API_Tests.postman_collection.json
+ • Averulo_Local.postman_environment.json
 
 Steps:
-	•	Plug your iPhone into your Mac
-	•	Tap Trust This Computer on iPhone
-	•	Open the project in Xcode → Signing & Capabilities → select your Apple ID (Personal Team)
-
-
-6. Workflow
-	•	Create branches like feature/login-screen
-	•	Push your branch to GitHub
-	•	Open a Pull Request into dev branch
-	•	After review, changes get merged into main
-
-7. Branch Protection
-
-On GitHub → Settings → Branches → Branch protection rules:
-	•	Protect main and dev
-	•	✅ Require a pull request before merging
-	•	✅ Require conversation resolution before merging
-
-
+	1.	Open Postman.
+	2.	Import both JSON files.
+	3.	Switch to environment: Averulo – Local.
+	4.	Run requests in order (Auth → Properties → Bookings → Payments).
 
 ⸻
 
-8. Troubleshooting
-	•	Restart Metro bundler:
+7. Ngrok for Webhooks (Payments)
 
-npx expo start -c
+To test Paystack webhooks locally:\
 
-	•	Double-check .env values
-	•	If still stuck → ping Kehinde
+ngrok http 4000
 
-✅ That’s it — you’re onboarded and ready to build! 🎉
+You’ll get a public URL like:
+
+https://random-id.ngrok-free.app -> http://localhost:4000
+
+Go to Paystack dashboard → set webhook URL to:
+
+https://random-id.ngrok-free.app/api/payments/webhook/paystack
+
+8. Current project status
+	•	✅ Authentication & OTP
+	•	✅ Properties CRUD
+	•	✅ Bookings flow
+	•	✅ Payments (Paystack)
+	•	❌ Notifications (not implemented yet – coming soon)
+
+9. Troubleshooting
+	•	500 error on webhook → check ngrok is running.
+	•	Prisma error → verify DATABASE_URL.
+	•	OTP emails not sent → dev mode returns OTP in API response.
+
+10. 
+    kenny will  provide you:
+	•	PAYSTACK_SECRET_KEY
+	•	PAYSTACK_PUBLIC_KEY
+	•	JWT_SECRET (keep it dev-secret)
+	2.	They set up locally:
+	•	DATABASE_URL (with their Postgres)
+	•	PORT, APP_ENV, CORS_ORIGIN
+
+    OTP will be returned in API response under devOtp.
