@@ -12,34 +12,31 @@ cd averulo-backend
 
 npm install
 
-3. Set up environment variables
+3.  Environment Variables
 
-Create a .env file at the project root. Minimum required keys:
+Create a .env file at the project root.
 
-# Server
-PORT=4000
-APP_ENV=development
-CORS_ORIGIN=http://localhost:3000
+🔑 Keys Kenny will provide you
+	•	JWT_SECRET=dev-secret
+	•	PAYSTACK_SECRET_KEY=sk_test_xxxxx
+	•	PAYSTACK_PUBLIC_KEY=pk_test_xxxxx
 
-# JWT
-JWT_SECRET=dev-secret
-JWT_EXPIRES_IN=7d
+⚙️ Keys you set locally
+	•	PORT=4000
+	•	APP_ENV=development
+	•	CORS_ORIGIN=http://localhost:3000
+	•	DATABASE_URL="postgresql://<user>:<password>@localhost:5432/averulo"
 
-# Database
-DATABASE_URL="postgresql://<user>:<password>@localhost:5432/averulo"
+the backend will fall back to dev mode and return OTP directly in the API response (devOtp):
 
-# Paystack
-PAYSTACK_SECRET_KEY=sk_test_xxxxxxxx
-PAYSTACK_PUBLIC_KEY=pk_test_xxxxxxxx
+SMTP_HOST=smtp.mailtrap.io  
+SMTP_PORT=2525  
+SMTP_USER=xxxxxxx  
+SMTP_PASS=xxxxxxx  
+EMAIL_FROM="Averulo <no-reply@averulo.local>"  
 
-# SMTP (optional for OTP emails, else dev mode fallback is used)
-SMTP_HOST=smtp.mailtrap.io
-SMTP_PORT=2525
-SMTP_USER=xxxxxxx
-SMTP_PASS=xxxxxxx
-EMAIL_FROM="Averulo <no-reply@averulo.local>"
+⚠️ Do not commit your real .env file to GitHub.
 
-⚠️  Important: never commit your real .env to GitHub.
 
 4. Database setup
 
