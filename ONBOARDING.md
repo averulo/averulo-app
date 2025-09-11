@@ -14,26 +14,18 @@ npm install
 
 3.  Environment Variables
 
-Create a .env file at the project root.
+Create your own .env file in the project root by copying the provided template:
 
 🔑 Keys Kenny will provide you
 	•	JWT_SECRET=dev-secret
 	•	PAYSTACK_SECRET_KEY=sk_test_xxxxx
 	•	PAYSTACK_PUBLIC_KEY=pk_test_xxxxx
 
-⚙️ Keys you set locally
-	•	PORT=4000
-	•	APP_ENV=development
-	•	CORS_ORIGIN=http://localhost:3000
-	•	DATABASE_URL="postgresql://<user>:<password>@localhost:5432/averulo"
+	•	You must configure these locally:
+	•	DATABASE_URL (Postgres connection string)
+	•	PORT, APP_ENV, CORS_ORIGIN
 
 the backend will fall back to dev mode and return OTP directly in the API response (devOtp):
-
-SMTP_HOST=smtp.mailtrap.io  
-SMTP_PORT=2525  
-SMTP_USER=xxxxxxx  
-SMTP_PASS=xxxxxxx  
-EMAIL_FROM="Averulo <no-reply@averulo.local>"  
 
 ⚠️ Do not commit your real .env file to GitHub.
 
@@ -61,9 +53,9 @@ curl http://localhost:4000/api/test
 
 6. Postman setup
 
-We provide ready-made files in postman/ folder:
- • Averulo_Backend_API_Tests.postman_collection.json
- • Averulo_Local.postman_environment.json
+Inside the postman/ folder you’ll find:
+	•	Averulo_Backend_API_Tests.postman_collection.json
+	•	Averulo_Local.postman_environment.json
 
 Steps:
 	1.	Open Postman.
@@ -92,20 +84,11 @@ https://random-id.ngrok-free.app/api/payments/webhook/paystack
 	•	✅ Properties CRUD
 	•	✅ Bookings flow
 	•	✅ Payments (Paystack)
-	•	❌ Notifications (not implemented yet – coming soon)
+	•	✅ Notifications (email via SMTP – optional, requires SMTP_* config)
 
 9. Troubleshooting
 	•	500 error on webhook → check ngrok is running.
 	•	Prisma error → verify DATABASE_URL.
 	•	OTP emails not sent → dev mode returns OTP in API response.
 
-10. 
-    kenny will  provide you:
-	•	PAYSTACK_SECRET_KEY
-	•	PAYSTACK_PUBLIC_KEY
-	•	JWT_SECRET (keep it dev-secret)
-	2.	They set up locally:
-	•	DATABASE_URL (with their Postgres)
-	•	PORT, APP_ENV, CORS_ORIGIN
-
-    OTP will be returned in API response under devOtp.
+devs  can test notifications, but only if they configure SMTP.
