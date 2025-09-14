@@ -1,5 +1,6 @@
 // index.js
 import dotenv from "dotenv";
+import crypto from "node:crypto";
 dotenv.config();
 
 import cors from "cors";
@@ -15,13 +16,45 @@ import { transporterOrNull } from "./lib/mailer.js";
 import { prisma } from "./lib/prisma.js";
 
 import authRoutes from "./routes/auth.js";
+import availabilityRouter from "./routes/availability.js";
 import bookingsRouter from "./routes/bookings.js";
 import paymentsRouter, { paystackWebhook } from "./routes/payments.js";
 import propertiesRouter from "./routes/properties.js";
 
+
 const app = express();
 const PORT = process.env.PORT || 4000;
 const isDev = process.env.APP_ENV !== "production";
+
+
+if (process.env.APP_ENV !== "production") {
+  app.get("/__dev/secret-meta", (_req, res) => {
+    const s = process.env.PAYSTACK_SECRET_KEY || "";
+    res.json({ len: s.length, tail: s.slice(-6) });
+  });
+}
+
+// 🚧 Dev-only endpoint to check secret tail
+if (process.env.APP_ENV !== "production") {
+  app.get("/__dev/secret-tail", (_req, res) => {
+    const key = process.env.PAYSTACK_SECRET_KEY || "";
+    res.json({ tail: key.slice(-6) });
+  });
+}
+
+// --- DEV: compute server-side HMAC of raw body (to compare) ---
+app.post("/__dev/hmac", express.raw({ type: "application/json" }), (req, res) => {
+  const secret = process.env.PAYSTACK_SECRET_KEY || "";
+  const computed = crypto.createHmac("sha512", secret).update(req.body).digest("hex");
+  res.json({ computed, tail: computed.slice(-8), bodyLen: req.body.length });
+});
+
+// --- DEV: quick sanity of loaded secret (no secret leak) ---
+app.get("/__dev/keyinfo", (_req, res) => {
+  const key = process.env.PAYSTACK_SECRET_KEY || "";
+  res.json({ byteLen: Buffer.byteLength(key), tail: key.slice(-6) });
+});
+
 
 // ✅ Mount webhook FIRST so req.body is RAW (Buffer) for HMAC check
 app.post(
@@ -152,7 +185,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/properties", propertiesRouter);
 app.use("/api/bookings", bookingsRouter);
 app.use("/api/payments", paymentsRouter);
-
+app.use("/api/availability", availabilityRouter);
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 API listening on http://0.0.0.0:${PORT}`);
 });

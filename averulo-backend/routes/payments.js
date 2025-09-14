@@ -4,55 +4,39 @@ import crypto from "node:crypto";
 import { auth } from "../lib/auth.js";
 import { prisma } from "../lib/prisma.js";
 
-// Named export so index.js can mount it BEFORE express.json()
+/* --------- Webhook handler (exported and mounted in index.js with express.raw) --------- */
 export async function paystackWebhook(req, res) {
   try {
     const secret = process.env.PAYSTACK_SECRET_KEY || "";
-    const signature = req.get("x-paystack-signature") || "";
-
-    // req.body is a Buffer here because express.raw() is used at the mount site
+    const sig = req.get("x-paystack-signature") || "";
     const computed = crypto.createHmac("sha512", secret).update(req.body).digest("hex");
-    if (computed !== signature) {
-      return res.status(401).send("Bad signature");
-    }
+    if (computed !== sig) return res.status(401).send("Bad signature");
 
     const evt = JSON.parse(req.body.toString("utf8"));
-    const ref = evt?.data?.reference;
+    const data = evt?.data;
+    const ref = data?.reference;
 
-    if (!ref) return res.status(400).send("Missing reference");
-
-    const booking = await prisma.booking.findFirst({ where: { paymentRef: ref } });
-    if (!booking) {
-      // Acknowledge anyway so Paystack stops retrying
-      console.warn("[paystack webhook] reference not found:", ref);
-      return res.status(200).send("ok");
-    }
-
-    if (evt.event === "charge.success" && evt?.data?.status === "success") {
-      // idempotent
-      await prisma.$transaction(async (tx) => {
-        const exists = await tx.payment.findUnique({ where: { reference: ref } });
-        if (!exists) {
-          await tx.payment.create({
+    if (evt.event === "charge.success" && data?.status === "success" && ref) {
+      const booking = await prisma.booking.findFirst({ where: { paymentRef: ref } });
+      if (booking) {
+        await prisma.$transaction([
+          prisma.payment.create({
             data: {
               bookingId: booking.id,
               reference: ref,
-              amount: evt.data.amount ?? booking.amount ?? 0,
-              currency: evt.data.currency ?? booking.currency ?? "NGN",
+              amount: data.amount,
+              currency: data.currency || "NGN",
               status: "SUCCESS",
               raw: evt,
             },
-          });
-        }
-        await tx.booking.update({
-          where: { id: booking.id },
-          data: { paymentStatus: "SUCCESS", status: "APPROVED" },
-        });
-      });
+          }),
+          prisma.booking.update({
+            where: { id: booking.id },
+            data: { paymentStatus: "SUCCESS", status: "APPROVED" },
+          }),
+        ]);
+      }
     }
-
-    // (optional) handle failures similarly if you want:
-    // if (evt.event === "charge.failed" || evt?.data?.status === "failed") { ... }
 
     return res.sendStatus(200);
   } catch (e) {
@@ -61,12 +45,13 @@ export async function paystackWebhook(req, res) {
   }
 }
 
+/* ---------------------------- JSON API router below ---------------------------- */
 const router = express.Router();
 
-// Helper
+// helper
 const toKobo = (n) => Math.round(Number(n) * 100);
 
-// Initialize a Paystack transaction for a booking
+// INIT
 router.post("/init", auth(true), async (req, res) => {
   try {
     const { bookingId } = req.body;
@@ -81,23 +66,15 @@ router.post("/init", auth(true), async (req, res) => {
     if (!booking.property) return res.status(400).json({ error: "Booking has no property" });
 
     const nights =
-      (new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) /
-      (1000 * 60 * 60 * 24);
+      (new Date(booking.endDate) - new Date(booking.startDate)) / (1000 * 60 * 60 * 24);
     if (nights <= 0) return res.status(400).json({ error: "Invalid dates" });
 
-    const amount = booking.property.nightlyPrice * nights;
-    const amountKobo = toKobo(amount);
-
+    const amountKobo = toKobo(booking.property.nightlyPrice * nights);
     const reference = `pay_${booking.id}_${Date.now()}`;
 
     await prisma.booking.update({
       where: { id: booking.id },
-      data: {
-        amount: amountKobo,
-        currency: "NGN",
-        paymentRef: reference,
-        paymentStatus: "INITIATED",
-      },
+      data: { amount: amountKobo, currency: "NGN", paymentRef: reference, paymentStatus: "INITIATED" },
     });
 
     const resp = await fetch("https://api.paystack.co/transaction/initialize", {
@@ -117,10 +94,7 @@ router.post("/init", auth(true), async (req, res) => {
 
     const data = await resp.json();
     if (!data?.status) {
-      return res.status(400).json({
-        error: "Payment init failed",
-        detail: data?.message || "Unknown error from Paystack",
-      });
+      return res.status(400).json({ error: "Payment init failed", detail: data?.message || "Unknown" });
     }
 
     return res.json({
@@ -134,15 +108,14 @@ router.post("/init", auth(true), async (req, res) => {
   }
 });
 
-// Verify (by reference) against Paystack and sync locally if needed
+// VERIFY
 router.get("/verify/:reference", auth(true), async (req, res) => {
   try {
     const ref = req.params.reference;
 
-    const resp = await fetch(
-      `https://api.paystack.co/transaction/verify/${encodeURIComponent(ref)}`,
-      { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } }
-    );
+    const resp = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(ref)}`, {
+      headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
+    });
     const data = await resp.json();
 
     if (!data?.status) {
@@ -184,7 +157,7 @@ router.get("/verify/:reference", auth(true), async (req, res) => {
   }
 });
 
-// List my payments
+// LIST MINE
 router.get("/me", auth(true), async (req, res) => {
   const rows = await prisma.payment.findMany({
     where: { booking: { guestId: req.user.sub } },
@@ -204,11 +177,10 @@ router.get("/me", auth(true), async (req, res) => {
   res.json(rows);
 });
 
-// Payments by booking
+// BY BOOKING
 router.get("/by-booking/:bookingId", auth(true), async (req, res) => {
-  const { bookingId } = req.params;
   const rows = await prisma.payment.findMany({
-    where: { bookingId },
+    where: { bookingId: req.params.bookingId },
     orderBy: { createdAt: "desc" },
   });
   res.json(rows);
