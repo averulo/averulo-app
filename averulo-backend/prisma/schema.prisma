@@ -39,6 +39,7 @@ model User {
   // relations
   properties Property[] @relation("HostProperties")
   bookings   Booking[]  @relation("GuestBookings")
+  reviews    Review[]   @relation("GuestReviews")
 }
 
 model Property {
@@ -58,11 +59,37 @@ model Property {
   hostId   String
   bookings Booking[]
 
+  reviews            Review[]            @relation("PropertyReviews") // 👈 back-ref for Review.property
   availabilityBlocks AvailabilityBlock[]
+
+  // Denormalized rating summary
+  avgRating    Float @default(0)
+  reviewsCount Int   @default(0)
 
   @@index([city])
   @@index([lat, lng])
   @@index([status])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  booking   Booking @relation("BookingReview", fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingId String  @unique // one review per booking
+
+  property   Property @relation("PropertyReviews", fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId String
+
+  guest   User   @relation("GuestReviews", fields: [guestId], references: [id], onDelete: Cascade)
+  guestId String
+
+  @@index([propertyId])
+  @@index([guestId])
 }
 
 model Booking {
@@ -78,12 +105,14 @@ model Booking {
   guest      User     @relation("GuestBookings", fields: [guestId], references: [id], onDelete: Cascade)
   guestId    String
 
-  amount        Int? // kobo (e.g. ₦50,000 => 5,000,000)
-  currency      String? // "NGN"
-  paymentRef    String? @unique
-  paymentStatus String? // "INITIATED" | "SUCCESS" | "FAILED"
+  review Review? @relation("BookingReview") // 👈 back-ref for Review.booking (one review per booking)
 
-  payments Payment[] // optional history records
+  amount        Int?
+  currency      String?
+  paymentRef    String? @unique
+  paymentStatus String?
+
+  payments Payment[]
 
   @@index([propertyId])
   @@index([guestId])
