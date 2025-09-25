@@ -18,14 +18,14 @@ const SplashScreen = ({ navigation }) => {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      navigation.replace('Login'); // Proceed to Login screen
+      navigation.replace('Welcome'); // 👈 Go to your Welcome screen
     });
   }, []);
 
   return (
     <View style={styles.container}>
       <Animated.Image
-        source={require('../assets/images/averulo-logo.png')} // Make sure this is the correct path
+        source={require('../assets/images/averulo-logo.png')} // ✅ Your real logo path
         style={[
           styles.logo,
           {

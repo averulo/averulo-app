@@ -4,15 +4,15 @@ import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import { useLayoutEffect, useState } from 'react';
 import {
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -46,20 +46,22 @@ export default function SignUpScreen() {
   if (!allFieldsFilled) return;
 
   try {
-    await axios.post('http://192.168.1.170:5050/api/send-otp', { email });
+    const res = await axios.post("http://192.168.100.6:4000/api/send-otp", { email });
 
-    navigation.navigate('OtpScreen', {
-      name,
-      email,
-      dob: formatDate(dob),
-    });
-  } catch (err) {
-    console.error('Failed to send OTP', err);
-    alert('Failed to send OTP. Please try again.')
-    // Optionally show error toast
-  }
-};
-
+    if (res.data.success) {
+      navigation.navigate('OtpScreen', {
+        name,
+        email,
+        dob: formatDate(dob),
+      });
+    } else {
+      alert("OTP failed to send: " + res.data.message);
+    }
+    } catch (err) {
+      console.error('Failed to send OTP', err);
+      alert('Failed to send OTP. Please try again.');
+    }
+  };
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
       <Text style={styles.authSwitch}>Log in or Sign up</Text>
@@ -122,6 +124,10 @@ export default function SignUpScreen() {
               onChangeText={setPassword}
               onFocus={() => setFocusedField('password')}
               onBlur={() => setFocusedField('')}
+              autoCapitalize="none"
+              autoCorrect={false}
+              importantForAutofill="no"
+              textContentType="oneTimeCode" // 👈 this is the trick to block iOS password autofill
             />
             <TouchableOpacity onPress={() => setPasswordVisible(!isPasswordVisible)}>
               <Ionicons name={isPasswordVisible ? 'eye-off' : 'eye'} size={20} color="#888" />
@@ -143,6 +149,10 @@ export default function SignUpScreen() {
               onChangeText={setConfirmPassword}
               onFocus={() => setFocusedField('confirmPassword')}
               onBlur={() => setFocusedField('')}
+              autoCapitalize="none"
+              autoCorrect={false}
+              importantForAutofill="no"
+              textContentType="oneTimeCode"
             />
             <TouchableOpacity onPress={() => setConfirmVisible(!isConfirmVisible)}>
               <Ionicons name={isConfirmVisible ? 'eye-off' : 'eye'} size={20} color="#888" />

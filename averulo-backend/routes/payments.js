@@ -2,6 +2,7 @@
 import express from "express";
 import crypto from "node:crypto";
 import { auth } from "../lib/auth.js";
+import { computePrice } from "../lib/pricing.js";
 import { prisma } from "../lib/prisma.js";
 
 /* --------- Webhook handler (exported and mounted in index.js with express.raw) --------- */
@@ -46,12 +47,32 @@ export async function paystackWebhook(req, res) {
 }
 
 /* ---------------------------- JSON API router below ---------------------------- */
-const router = express.Router();
-
 // helper
 const toKobo = (n) => Math.round(Number(n) * 100);
 
 // INIT
+import { z } from "zod";
+
+import { notifyGuestBookingStatus, notifyHostBooking } from "../lib/notify.js";
+import { requireRole } from "../lib/roles.js";
+import { validate } from "../lib/validate.js";
+
+const router = express.Router();
+
+/* ──────────────────────────────────────────────────────────────
+   Schemas
+   ────────────────────────────────────────────────────────────── */
+const createBookingSchema = z.object({
+  propertyId: z.string().min(1),
+  checkIn: z.coerce.date(),   // accepts "YYYY-MM-DD"
+  checkOut: z.coerce.date(),  // accepts "YYYY-MM-DD"
+});
+
+const idParamSchema = z.object({
+  id: z.string().min(1),
+});
+
+
 router.post("/init", auth(true), async (req, res) => {
   try {
     const { bookingId } = req.body;
@@ -69,12 +90,21 @@ router.post("/init", auth(true), async (req, res) => {
       (new Date(booking.endDate) - new Date(booking.startDate)) / (1000 * 60 * 60 * 24);
     if (nights <= 0) return res.status(400).json({ error: "Invalid dates" });
 
-    const amountKobo = toKobo(booking.property.nightlyPrice * nights);
+    // ✅ prefer stored total; else compute with pricing util (already in KOBO)
+    const amountKobo =
+      booking.totalAmount ??
+      computePrice(booking.property.nightlyPrice, booking.startDate, booking.endDate).total;
+
     const reference = `pay_${booking.id}_${Date.now()}`;
 
     await prisma.booking.update({
       where: { id: booking.id },
-      data: { amount: amountKobo, currency: "NGN", paymentRef: reference, paymentStatus: "INITIATED" },
+      data: {
+        amount: amountKobo,
+        currency: "NGN",
+        paymentRef: reference,
+        paymentStatus: "INITIATED",
+      },
     });
 
     const resp = await fetch("https://api.paystack.co/transaction/initialize", {
@@ -97,14 +127,229 @@ router.post("/init", auth(true), async (req, res) => {
       return res.status(400).json({ error: "Payment init failed", detail: data?.message || "Unknown" });
     }
 
-    return res.json({
+    res.json({
       authorization_url: data.data.authorization_url,
       access_code: data.data.access_code,
       reference: data.data.reference,
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ error: "Payment init failed", detail: err.message });
+    res.status(500).json({ error: "Payment init failed", detail: err.message });
+  }
+});
+/* ──────────────────────────────────────────────────────────────
+   Quote (no auth required)
+   ────────────────────────────────────────────────────────────── */
+router.post("/quote", async (req, res) => {
+  const { propertyId, checkIn, checkOut } = req.body || {};
+  if (!propertyId || !checkIn || !checkOut) {
+    return res.status(400).json({ error: "propertyId, checkIn, checkOut are required" });
+  }
+  const prop = await prisma.property.findUnique({ where: { id: propertyId } });
+  if (!prop) return res.status(404).json({ error: "Property not found" });
+
+  const breakdown = computePrice(prop.nightlyPrice, checkIn, checkOut);
+  return res.json({ propertyId, checkIn, checkOut, currency: "NGN", ...breakdown });
+});
+
+/* ──────────────────────────────────────────────────────────────
+   Create booking (USER)
+   ────────────────────────────────────────────────────────────── */
+router.post("/", auth(true), validate(createBookingSchema), async (req, res) => {
+  try {
+    const { propertyId, checkIn, checkOut } = req.body;
+    const userId = req.user?.sub;
+    if (!userId) return res.status(401).json({ error: "Invalid token (no sub)" });
+
+    const start = new Date(checkIn);
+    const end   = new Date(checkOut);
+
+    // Ensure property is bookable
+    const prop = await prisma.property.findUnique({
+      where: { id: propertyId },
+      select: { id: true, title: true, status: true, nightlyPrice: true, host: { select: { email: true, id: true } } },
+    });
+    if (!prop) return res.status(404).json({ error: "Property not found" });
+    if (prop.status !== "ACTIVE") return res.status(400).json({ error: "Property is not bookable" });
+
+    // Overlap with bookings (PENDING/APPROVED)
+    const collision = await prisma.booking.findFirst({
+      where: {
+        propertyId,
+        status: { in: ["PENDING", "APPROVED"] },
+        NOT: [
+          { endDate:   { lte: start } },
+          { startDate: { gte: end   } },
+        ],
+      },
+      select: { id: true },
+    });
+    if (collision) return res.status(409).json({ error: "Dates not available" });
+
+    // Respect host blackouts
+    const blocked = await prisma.availabilityBlock.findFirst({
+      where: {
+        propertyId,
+        NOT: [
+          { endDate:   { lte: start } },
+          { startDate: { gte: end   } },
+        ],
+      },
+      select: { id: true },
+    });
+    if (blocked) return res.status(409).json({ error: "Dates blocked by host" });
+
+    // 💰 Price breakdown + total (KOBO) and store
+    const breakdown = computePrice(prop.nightlyPrice, start, end);
+
+    const created = await prisma.booking.create({
+      data: {
+        property:    { connect: { id: propertyId } },
+        guest:       { connect: { id: userId } },
+        startDate:   start,
+        endDate:     end,
+        status:      "PENDING",
+        feesJson:    breakdown,          // UI-facing NGN numbers + nights
+        totalAmount: breakdown.total,    // KOBO total for payments
+        amount:      breakdown.total,    // keep legacy fields in sync
+        currency:    "NGN",
+      },
+      select: {
+        id: true, startDate: true, endDate: true, status: true, createdAt: true,
+        propertyId: true, guestId: true, feesJson: true, totalAmount: true,
+      },
+    });
+
+    // Notify host (best effort)
+    if (prop.host?.email) {
+      await notifyHostBooking({
+        hostEmail: prop.host.email,
+        propertyTitle: prop.title,
+        start: start.toISOString().slice(0, 10),
+        end: end.toISOString().slice(0, 10),
+        guestEmail: req.user?.email || "guest",
+      }).catch(() => {});
+    }
+
+    return res.status(201).json(created);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Failed to create booking", detail: String(err.message || err) });
+  }
+});
+
+/* ──────────────────────────────────────────────────────────────
+   My bookings
+   ────────────────────────────────────────────────────────────── */
+router.get("/me", auth(true), async (req, res) => {
+  const bookings = await prisma.booking.findMany({
+    where: { guestId: req.user.sub },
+    orderBy: { createdAt: "desc" },
+    include: { property: { select: { id: true, title: true, city: true } } },
+  });
+  res.json(bookings);
+});
+
+/* ──────────────────────────────────────────────────────────────
+   Host/Admin bookings
+   ────────────────────────────────────────────────────────────── */
+router.get("/host", auth(true), requireRole("HOST", "ADMIN"), async (req, res) => {
+  const role = req.user?.role;
+  const where = role === "HOST" ? { property: { hostId: req.user.sub } } : {};
+  const bookings = await prisma.booking.findMany({
+    where,
+    include: {
+      property: { select: { id: true, title: true, city: true, hostId: true } },
+      guest: { select: { id: true, email: true, name: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  res.json(bookings);
+});
+
+/* ──────────────────────────────────────────────────────────────
+   Approve / Reject / Cancel
+   ────────────────────────────────────────────────────────────── */
+router.patch("/:id/approve", auth(true), requireRole("HOST", "ADMIN"), validate(idParamSchema, "params"), async (req, res) => {
+  try {
+    const role = req.user?.role;
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      include: { property: { select: { hostId: true, title: true } }, guest: true },
+    });
+    if (!booking) return res.status(404).json({ error: "Booking not found" });
+    if (role === "HOST" && booking.property.hostId !== req.user.sub) return res.status(403).json({ error: "Not your property" });
+    if (booking.status !== "PENDING") return res.status(400).json({ error: "Only PENDING bookings can be approved" });
+
+    const updated = await prisma.booking.update({ where: { id: booking.id }, data: { status: "APPROVED" } });
+
+    await notifyGuestBookingStatus({
+      guestEmail: booking.guest?.email,
+      propertyTitle: booking.property?.title,
+      status: "APPROVED",
+      start: new Date(booking.startDate).toISOString().slice(0, 10),
+      end: new Date(booking.endDate).toISOString().slice(0, 10),
+    }).catch(() => {});
+
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to approve booking", detail: err.message });
+  }
+});
+
+router.patch("/:id/reject", auth(true), requireRole("HOST", "ADMIN"), validate(idParamSchema, "params"), async (req, res) => {
+  try {
+    const role = req.user?.role;
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      include: { property: { select: { hostId: true, title: true } }, guest: true },
+    });
+    if (!booking) return res.status(404).json({ error: "Booking not found" });
+    if (role === "HOST" && booking.property.hostId !== req.user.sub) return res.status(403).json({ error: "Not your property" });
+    if (booking.status !== "PENDING") return res.status(400).json({ error: "Only PENDING bookings can be rejected" });
+
+    const updated = await prisma.booking.update({ where: { id: booking.id }, data: { status: "REJECTED" } });
+
+    await notifyGuestBookingStatus({
+      guestEmail: booking.guest?.email,
+      propertyTitle: booking.property?.title,
+      status: "REJECTED",
+      start: new Date(booking.startDate).toISOString().slice(0, 10),
+      end: new Date(booking.endDate).toISOString().slice(0, 10),
+    }).catch(() => {});
+
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to reject booking", detail: err.message });
+  }
+});
+
+router.patch("/:id/cancel", auth(true), validate(idParamSchema, "params"), async (req, res) => {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      include: { property: { select: { title: true } }, guest: true },
+    });
+    if (!booking) return res.status(404).json({ error: "Booking not found" });
+    if (booking.guestId !== req.user.sub) return res.status(403).json({ error: "Not your booking" });
+    if (booking.status !== "PENDING") return res.status(400).json({ error: "Only pending bookings can be cancelled" });
+
+    const updated = await prisma.booking.update({ where: { id: booking.id }, data: { status: "CANCELLED" } });
+
+    await notifyGuestBookingStatus({
+      guestEmail: booking.guest?.email,
+      propertyTitle: booking.property?.title,
+      status: "CANCELLED",
+      start: new Date(booking.startDate).toISOString().slice(0, 10),
+      end: new Date(booking.endDate).toISOString().slice(0, 10),
+    }).catch(() => {});
+
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to cancel booking", detail: err.message });
   }
 });
 

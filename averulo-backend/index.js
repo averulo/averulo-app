@@ -1,69 +1,69 @@
 // index.js
-import dotenv from "dotenv";
-import crypto from "node:crypto";
-dotenv.config();
-
 import cors from "cors";
+import dotenv from "dotenv";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import jwt from "jsonwebtoken";
 import multer from "multer";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+dotenv.config();
+console.log("Loaded SMTP from env:");
+console.log("SMTP_USER:", process.env.SMTP_USER);
+console.log("SMTP_PASS:", process.env.SMTP_PASS);
 
 import { auth } from "./lib/auth.js";
-import { transporterOrNull } from "./lib/mailer.js";
+import { getTransporter } from "./lib/mailer.js";
 import { prisma } from "./lib/prisma.js";
 
 import authRoutes from "./routes/auth.js";
 import availabilityRouter from "./routes/availability.js";
 import bookingsRouter from "./routes/bookings.js";
+import favoritesRouter from "./routes/favorites.js";
+import hostRouter from "./routes/host.js";
 import paymentsRouter, { paystackWebhook } from "./routes/payments.js";
 import propertiesRouter from "./routes/properties.js";
+import reviewsRouter from "./routes/reviews.js";
 
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-const isDev = process.env.APP_ENV !== "production";
-
-
-if (process.env.APP_ENV !== "production") {
+const isDev = process.env.NODE_ENV !== "production";
+/* ── DEV HELPERS (only in non-prod) ─────────────────────────────────────── */
+if (isDev) {
   app.get("/__dev/secret-meta", (_req, res) => {
     const s = process.env.PAYSTACK_SECRET_KEY || "";
     res.json({ len: s.length, tail: s.slice(-6) });
   });
-}
 
-// 🚧 Dev-only endpoint to check secret tail
-if (process.env.APP_ENV !== "production") {
   app.get("/__dev/secret-tail", (_req, res) => {
     const key = process.env.PAYSTACK_SECRET_KEY || "";
     res.json({ tail: key.slice(-6) });
   });
+
+  // compute server-side HMAC of RAW body to compare with your local openssl
+  app.post("/__dev/hmac", express.raw({ type: "application/json" }), (req, res) => {
+    const secret = process.env.PAYSTACK_SECRET_KEY || "";
+    const computed = crypto.createHmac("sha512", secret).update(req.body).digest("hex");
+    res.json({ computed, tail: computed.slice(-8), bodyLen: req.body.length });
+  });
+
+  // quick sanity of loaded secret (no secret leak)
+  app.get("/__dev/keyinfo", (_req, res) => {
+    const key = process.env.PAYSTACK_SECRET_KEY || "";
+    res.json({ byteLen: Buffer.byteLength(key), tail: key.slice(-6) });
+  });
 }
 
-// --- DEV: compute server-side HMAC of raw body (to compare) ---
-app.post("/__dev/hmac", express.raw({ type: "application/json" }), (req, res) => {
-  const secret = process.env.PAYSTACK_SECRET_KEY || "";
-  const computed = crypto.createHmac("sha512", secret).update(req.body).digest("hex");
-  res.json({ computed, tail: computed.slice(-8), bodyLen: req.body.length });
-});
-
-// --- DEV: quick sanity of loaded secret (no secret leak) ---
-app.get("/__dev/keyinfo", (_req, res) => {
-  const key = process.env.PAYSTACK_SECRET_KEY || "";
-  res.json({ byteLen: Buffer.byteLength(key), tail: key.slice(-6) });
-});
-
-
-// ✅ Mount webhook FIRST so req.body is RAW (Buffer) for HMAC check
+/* ── Webhook BEFORE json middleware ─────────────────────────────────────── */
 app.post(
   "/api/payments/webhook/paystack",
   express.raw({ type: "application/json" }),
   paystackWebhook
 );
 
-// ——— Rest of middleware (safe AFTER webhook) ———
+/* ── Rest of middleware AFTER webhook ───────────────────────────────────── */
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN?.split(",") || "*",
@@ -95,7 +95,17 @@ const authRequired = auth(true);
 
 // current user
 app.get("/api/me", authRequired, async (req, res) => {
-  const me = await prisma.user.findUnique({ where: { id: req.user.sub } });
+  const me = await prisma.user.findUnique({
+    where: { id: req.user.sub },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      phone: true,
+      kycStatus: true,
+      role: true,
+    },
+  });
   res.json(me);
 });
 
@@ -131,11 +141,12 @@ app.post("/api/send-otp", otpLimiter, async (req, res) => {
   if (!email) return res.status(400).json({ success: false, message: "Email is required" });
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  otpStore[email] = { code: otp, expires: Date.now() + 5 * 60 * 1000 };
+  otpStore[email] = { code: otp, expires: Date.now() + 10 * 60 * 1000 };
 
   try {
-    if (transporterOrNull) {
-      await transporterOrNull.sendMail({
+    const transporter = getTransporter();
+    if (transporter) {
+      await transporter.sendMail({
         from: process.env.EMAIL_FROM || '"Averulo" <no-reply@averulo.local>',
         to: email,
         subject: "Your OTP Code",
@@ -180,12 +191,31 @@ app.post("/api/verify-otp", otpLimiter, async (req, res) => {
   return res.json({ success: true, message: "OTP Verified!", token, user });
 });
 
+app.get("/test-email", async (req, res) => {
+  try {
+    const transporter = getTransporter();
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: "yourrealemail@gmail.com",
+      subject: "SMTP Test",
+      text: "SMTP setup is working 🚀",
+    });
+    res.send("Email sent!");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Failed to send email");
+  }
+});
+
 // mount routers
 app.use("/api/auth", authRoutes);
 app.use("/api/properties", propertiesRouter);
 app.use("/api/bookings", bookingsRouter);
 app.use("/api/payments", paymentsRouter);
 app.use("/api/availability", availabilityRouter);
+app.use("/api/reviews", reviewsRouter);
+app.use("/api/favorites", favoritesRouter);
+app.use("/api/host", hostRouter);
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 API listening on http://0.0.0.0:${PORT}`);
 });

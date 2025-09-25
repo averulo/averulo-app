@@ -1,7 +1,11 @@
-import express from 'express';
-import { completeSignup } from '../controllers/authController.js';
+import express from "express";
+
 const router = express.Router();
 
-router.post('/complete-signup', completeSignup);
+/**
+ * POST /api/send-otp
+ * Generate and send OTP to email (for dev, just return it).
+ */
+
 
 export default router;

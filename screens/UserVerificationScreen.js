@@ -1,161 +1,276 @@
-import { Picker } from '@react-native-picker/picker';
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Dimensions, Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Dimensions,
+  FlatList,
+  Image,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 const idTypes = [
-  { label: "National Drivers Licence", value: "drivers-license" },
-  { label: "Passport", value: "passport" },
-  { label: "National Identification Number", value: "national-id" },
+  { label: 'National Driver Licence', value: 'drivers-license' },
+  { label: 'Passport', value: 'passport' },
+  { label: 'National Identification Number', value: 'national-id' },
 ];
 
 export default function UserVerificationScreen({ navigation }) {
-  const [selectedIdType, setSelectedIdType] = useState(idTypes[0].value);
+  const [selectedIdType, setSelectedIdType] = useState(idTypes[0]);
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const handleContinue = () => {
+    if (selectedIdType.value === 'drivers-license') {
+      navigation.navigate('TakePhotoOfID', { idType: selectedIdType.value });
+    } else if (selectedIdType.value === 'passport') {
+      navigation.navigate('TakePhotoOfPassport');
+    } else if (selectedIdType.value === 'national-id') {
+      navigation.navigate('InputNIN');
+    }
+  };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backArrow}>{'<'}</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Verify</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Home')}>
-          <Text style={styles.skip}>Skip</Text>
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#000A63" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Verify</Text>
+          <TouchableOpacity
+            onPress={() => navigation.reset({
+              index: 0,
+              routes: [{ name: 'MainTabs' }],
+            })}
+          >
+            <Text style={styles.skip}>Skip</Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* Main Title */}
-      <Text style={styles.bigTitle}>User Verification</Text>
+        {/* Title */}
+        <Text style={styles.title}>Users Verification</Text>
 
-      {/* ID Type Input */}
-      <Text style={styles.inputLabel}>Please select your preferred ID</Text>
-      <View style={styles.dropdownBox}>
-        <Picker
-          selectedValue={selectedIdType}
-          onValueChange={(itemValue) => setSelectedIdType(itemValue)}
-          style={styles.picker}
-          mode="dropdown"
+        {/* ID Selection */}
+        <Text style={styles.label}>Please select your preferred ID</Text>
+        <TouchableOpacity
+          style={styles.dropdown}
+          onPress={() => setModalVisible(true)}
         >
-          {idTypes.map(type => (
-            <Picker.Item key={type.value} label={type.label} value={type.value} />
-          ))}
-        </Picker>
-      </View>
+          <Text style={styles.dropdownText}>
+            {selectedIdType.label}
+          </Text>
+          <Ionicons name="chevron-down" size={20} color="#000" />
+        </TouchableOpacity>
 
-      {/* Card Illustration */}
-      <View style={styles.illustrationWrap}>
-        <Image
-          source={require('../assets/images/id-card-illustration.png')}
-          style={styles.illustrationImg}
-          resizeMode="contain"
-        />
-      </View>
+        {/* Custom Modal */}
+        <Modal visible={modalVisible} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>Please select ID type</Text>
+              <Text style={styles.modalSub}>Select your prefer type</Text>
+              <FlatList
+                data={idTypes}
+                keyExtractor={(item) => item.value}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.modalItem}
+                    onPress={() => {
+                      setSelectedIdType(item);
+                      setModalVisible(false);
+                    }}
+                  >
+                    <Text style={styles.modalItemText}>{item.label}</Text>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          </View>
+        </Modal>
 
-      {/* "Get your ID card ready" */}
-      <Text style={styles.guidelineTitle}>Get your ID card ready</Text>
-      <Text style={styles.guidelineSubtitle}>You'll capture the front and back of the ID</Text>
+        {/* ID Illustration */}
+        <View style={styles.imageWrapper}>
+          <Image
+            source={require('../assets/images/id-card-illustration.png')}
+            resizeMode="contain"
+            style={styles.illustration}
+          />
+        </View>
 
-      {/* Guideline Image */}
-      <View style={styles.guidelineWrap}>
+        {/* Guideline Text */}
+        <Text style={styles.guideTitle}>Get your ID card ready</Text>
+        <Text style={styles.guideSub}>You’ll capture the front and back of the ID</Text>
+
+        {/* Guideline Image */}
         <Image
           source={require('../assets/images/guidelines.png')}
-          style={styles.guidelineImg}
           resizeMode="contain"
+          style={styles.guidelineImage}
         />
-      </View>
-      <Text style={styles.guidelineHint}>No Crop, No Blur, No Glare</Text>
+        <Text style={styles.noGlareText}>No Crop, No Blur, No Glare</Text>
 
-      {/* Please avoid using (bottom card) */}
-      <View style={styles.bottomCard}>
-        <Text style={styles.avoidTitle}>Please avoid using</Text>
-        <Text style={styles.avoidItem}>• <Text style={styles.avoidText}>Expired ID</Text></Text>
-        <Text style={styles.avoidItem}>• <Text style={styles.avoidText}>Photocopied or printed ID</Text></Text>
-      </View>
+        {/* Avoid Card */}
+        <View style={styles.avoidCard}>
+          <Text style={styles.avoidTitle}>Please avoid using</Text>
+          <Text style={styles.avoidItem}>• Expired ID</Text>
+          <Text style={styles.avoidItem}>• Photocopied or printed ID</Text>
+        </View>
 
-      {/* Continue Button */}
-      <TouchableOpacity
-        style={styles.continueBtn}
-        onPress={() => navigation.navigate('TakePhotoOfID', { idType: selectedIdType })}
-      >
-        <Text style={styles.continueText}>Continue</Text>
-      </TouchableOpacity>
-    </View>
+        {/* Continue */}
+        <TouchableOpacity style={styles.continueBtn} onPress={handleContinue}>
+          <Text style={styles.continueText}>Continue</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1, backgroundColor: '#fff', paddingHorizontal: 24, paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    justifyContent: 'flex-start'
+  safeArea: { flex: 1, backgroundColor: '#fff' },
+  scrollContent: {
+    padding: 24,
+    paddingBottom: 40,
   },
   header: {
-    flexDirection: 'row', alignItems: 'center', marginBottom: 14, justifyContent: 'space-between',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
-  backArrow: { fontSize: 28, color: '#000A63', fontWeight: 'bold' },
-  headerTitle: { fontSize: 20, color: '#000A63', fontWeight: 'bold', textAlign: 'center' },
-  skip: { fontSize: 16, color: '#000A63', fontWeight: '600' },
-  bigTitle: {
-    fontSize: 28, fontWeight: 'bold', marginBottom: 16, color: '#000A63', alignSelf: 'center',
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#000A63',
   },
-  inputLabel: {
-    fontSize: 16, color: '#333', fontWeight: '500', marginBottom: 6,
+  skip: {
+    fontSize: 16,
+    color: '#000A63',
+    fontWeight: '500',
   },
-  dropdownBox: {
-    borderWidth: 1, borderColor: '#A5B4FC', borderRadius: 8, marginBottom: 32, backgroundColor: '#fff',
-    justifyContent: 'center', minHeight: 48,
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#000A63',
+    marginBottom: 20,
+    textAlign: 'center',
   },
-  picker: { height: 44, width: '100%' },
-
-  illustrationWrap: { alignItems: 'center', marginBottom: 8 },
-  illustrationImg: {
-    width: screenWidth * 0.42,
-    height: screenWidth * 0.22,
-    marginBottom: 2,
+  label: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 6,
   },
-
-  guidelineTitle: {
-    color: '#000A63', fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginTop: 12,
-  },
-  guidelineSubtitle: {
-    color: '#666', fontSize: 15, textAlign: 'center', marginBottom: 4,
-  },
-  guidelineWrap: { alignItems: 'center', marginTop: 10 },
-  guidelineImg: {
-    width: screenWidth * 0.75,
-    height: screenWidth * 0.18,
-  },
-  guidelineHint: {
-    color: '#000A63', fontSize: 16, fontWeight: 'bold', textAlign: 'center', marginTop: 7, marginBottom: 4,
-  },
-
-  bottomCard: {
-    backgroundColor: '#F5F8FF',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 28,
-    marginBottom: 14,
+  dropdown: {
     borderWidth: 1,
-    borderColor: '#E7E9F7',
+    borderColor: '#A5B4FC',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+  dropdownText: {
+    fontSize: 15,
+    color: '#111',
+  },
+  imageWrapper: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  illustration: {
+    width: width * 0.65,
+    height: width * 0.35,
+  },
+  guideTitle: {
+    fontSize: 18,
+    color: '#000A63',
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  guideSub: {
+    fontSize: 14,
+    textAlign: 'center',
+    color: '#555',
+    marginBottom: 12,
+  },
+  guidelineImage: {
+    width: width * 0.85,
+    height: width * 0.18,
+    alignSelf: 'center',
+    marginBottom: 8,
+  },
+  noGlareText: {
+    fontSize: 14,
+    textAlign: 'center',
+    color: '#000A63',
+    fontWeight: '600',
+    marginBottom: 20,
+  },
+  avoidCard: {
+    backgroundColor: '#F5F8FF',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#E0E7FF',
   },
   avoidTitle: {
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#b38a00',
-    fontSize: 18,
-    marginBottom: 3,
+    marginBottom: 8,
   },
-  avoidItem: { fontSize: 16, color: '#b38a00', marginTop: 2 },
-  avoidText: { color: '#b38a00', fontWeight: '500' },
-
+  avoidItem: {
+    fontSize: 15,
+    color: '#b38a00',
+    marginBottom: 4,
+  },
   continueBtn: {
     backgroundColor: '#000A63',
-    paddingVertical: 18,
+    paddingVertical: 16,
     borderRadius: 10,
     alignItems: 'center',
-    marginBottom: 18,
-    width: '100%',
-    alignSelf: 'center',
   },
-  continueText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  continueText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalBox: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    color: '#000A63',
+  },
+  modalSub: {
+    fontSize: 14,
+    color: '#777',
+    marginBottom: 12,
+  },
+  modalItem: {
+    paddingVertical: 12,
+  },
+  modalItemText: {
+    fontSize: 16,
+    color: '#111',
+  },
 });
