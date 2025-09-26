@@ -28,18 +28,19 @@ Make sure to **run locally with `npm run dev`** and **test with Postman** before
 }
 
 
-Task 2: Booking History Endpoint
+## Task 2: Booking History Endpoint
 
-Assigned to: Dev B
-	•	Route: GET /api/bookings/me
-	•	File to modify: routes/bookings.js
-	•	Logic:
+** Assigned to: Dev B**
+	•	**Route:** `GET /api/bookings/me`
+	•	***File to modify:** routes/bookings.js
+	•	**Logic:**
 	•	Fetch all bookings for the currently authenticated user (req.user.sub).
 	•	Include basic property info (title, city, nightlyPrice, status).
 	•	Sort by createdAt DESC so newest bookings come first.
 	•	Return as an array.
 
-Example Response:
+**Example Response:**
+```json
 [
   {
     "id": "book_123",
@@ -66,4 +67,3 @@ npm run dev
 	•	Add Authorization: Bearer <token> header.
 	•	Confirm correct responses.
 
-    
