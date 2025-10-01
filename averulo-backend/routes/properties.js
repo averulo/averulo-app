@@ -1,10 +1,14 @@
 // routes/properties.js
 import express from "express";
+import { getPropertyStats } from "../controllers/propertiesController.js";
 import { auth } from "../lib/auth.js";
 import { prisma } from "../lib/prisma.js";
 import { requireRole } from "../lib/roles.js";
 
 const router = express.Router();
+
+// GET /api/properties/stats
+router.get("/stats", getPropertyStats);
 const authOptional = auth(false);
 
 /**
