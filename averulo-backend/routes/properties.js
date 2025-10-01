@@ -117,8 +117,21 @@ router.get("/:id", authOptional, async (req, res) => {
         reviewsCount: true,
         favoritesCount: true,
         host: { select: { id: true, email: true, name: true } },
+        reviews: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            createdAt: true,
+            guest: { select: { id: true, name: true, email: true } },
+          },
+          take: 5, 
+        },
       },
     });
+
+
     if (!prop) return res.status(404).json({ error: "Not found" });
 
     let isFavorite = false;

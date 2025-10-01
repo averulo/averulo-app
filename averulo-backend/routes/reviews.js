@@ -2,6 +2,7 @@ import express from "express";
 import { z } from "zod";
 import { auth } from "../lib/auth.js";
 import { prisma } from "../lib/prisma.js";
+import { requireRole } from "../lib/roles.js";
 
 const router = express.Router();
 
@@ -98,6 +99,31 @@ router.get("/me", auth(true), async (req, res) => {
     },
   });
   res.json(rows);
+});
+
+// PATCH /api/reviews/:id/reply
+router.patch("/:id/reply", auth(true), requireRole("HOST", "ADMIN"), async (req, res) => {
+  const { reply } = req.body;
+  if (!reply || reply.length > 1000) {
+    return res.status(400).json({ error: "Reply is required and max 1000 chars" });
+  }
+
+  const review = await prisma.review.findUnique({
+    where: { id: req.params.id },
+    include: { property: true },
+  });
+
+  if (!review) return res.status(404).json({ error: "Review not found" });
+  if (req.user.role === "HOST" && review.property.hostId !== req.user.sub) {
+    return res.status(403).json({ error: "Not your property" });
+  }
+
+  const updated = await prisma.review.update({
+    where: { id: req.params.id },
+    data: { reply },
+  });
+
+  res.json({ ok: true, review: updated });
 });
 
 export default router;

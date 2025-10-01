@@ -101,7 +101,7 @@ app.get("/api/me", authRequired, async (req, res) => {
       id: true,
       email: true,
       name: true,
-      phone: true,
+      dob: true,
       kycStatus: true,
       role: true,
     },
