@@ -17,15 +17,17 @@ import { auth } from "./lib/auth.js";
 import { getTransporter } from "./lib/mailer.js";
 import { prisma } from "./lib/prisma.js";
 
+import adminRouter from "./routes/admin.js";
 import authRoutes from "./routes/auth.js";
 import availabilityRouter from "./routes/availability.js";
 import bookingsRouter from "./routes/bookings.js";
 import favoritesRouter from "./routes/favorites.js";
 import hostRouter from "./routes/host.js";
+import notificationsRouter from "./routes/notifications.js";
 import paymentsRouter, { paystackWebhook } from "./routes/payments.js";
 import propertiesRouter from "./routes/properties.js";
 import reviewsRouter from "./routes/reviews.js";
-
+import userRoutes from "./routes/userRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -216,6 +218,9 @@ app.use("/api/availability", availabilityRouter);
 app.use("/api/reviews", reviewsRouter);
 app.use("/api/favorites", favoritesRouter);
 app.use("/api/host", hostRouter);
+app.use("/api/admin", adminRouter);
+app.use("/api/notifications", notificationsRouter);
+app.use("/api/users", userRoutes);
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 API listening on http://0.0.0.0:${PORT}`);
 });

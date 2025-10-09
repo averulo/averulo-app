@@ -2,12 +2,12 @@ import express from "express";
 import { z } from "zod";
 
 import { auth } from "../lib/auth.js";
+import { createNotification } from "../lib/notifications.js";
 import { notifyGuestBookingStatus, notifyHostBooking } from "../lib/notify.js";
 import { computePrice } from "../lib/pricing.js";
 import { prisma } from "../lib/prisma.js";
 import { requireRole } from "../lib/roles.js";
 import { validate } from "../lib/validate.js";
-
 const router = express.Router();
 
 /* ──────────────────────────────────────────────────────────────
@@ -238,6 +238,44 @@ router.patch("/:id/cancel", auth(true), validate(idParamSchema, "params"), async
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to cancel booking", detail: err.message });
+  }
+});
+
+// PATCH /api/bookings/:id/status
+router.patch("/:id/status", auth(true), requireRole("ADMIN", "HOST"), async (req, res) => {
+  try {
+    const { status } = req.body;
+    const booking = await prisma.booking.update({
+      where: { id: req.params.id },
+      data: { status },
+      include: { 
+        guest: { select: { id: true, email: true } },
+        property: { select: { title: true, city: true } }
+      },
+    });
+
+    // Automatically create notification for the guest
+    await createNotification({
+      userId: booking.guest.id,
+      type: "BOOKING_STATUS",
+      title:
+        status === "APPROVED"
+          ? "Booking Approved 🎉"
+          : status === "REJECTED"
+          ? "Booking Rejected ❌"
+          : `Booking ${status}`,
+      body:
+        status === "APPROVED"
+          ? `Your booking for ${booking.property.title} in ${booking.property.city} was approved.`
+          : `Your booking for ${booking.property.title} in ${booking.property.city} was ${status.toLowerCase()}.`,
+      emailTo: booking.guest.email,
+      emailSubject: `Your booking was ${status}`,
+    });
+
+    res.json({ ok: true, booking });
+  } catch (err) {
+    console.error("Booking status update failed:", err);
+    res.status(500).json({ error: err.message });
   }
 });
 

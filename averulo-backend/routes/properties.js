@@ -127,6 +127,7 @@ router.get("/:id", authOptional, async (req, res) => {
             id: true,
             rating: true,
             comment: true,
+            reply: true,
             createdAt: true,
             guest: { select: { id: true, name: true, email: true } },
           },

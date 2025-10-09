@@ -27,7 +27,6 @@ enum KycStatus {
   REJECTED
 }
 
-
 enum BookingStatus {
   PENDING
   APPROVED
@@ -35,27 +34,30 @@ enum BookingStatus {
   CANCELLED
 }
 
+
+
 model User {
   id        String    @id @default(cuid())
   email     String    @unique
   name      String?
   dob       DateTime?
+  phone     String?
   role      Role      @default(USER)
   createdAt DateTime  @default(now())
 
   kycStatus KycStatus @default(PENDING)
 
   // 🔐 add these for OTP
-  otp         String?      // store last OTP (dev/MVP)
+  otp String? // store last OTP (dev/MVP)
   // otpExpires DateTime?   // optional: add expiry window
-
-
 
   // relations
   properties Property[] @relation("HostProperties")
   bookings   Booking[]  @relation("GuestBookings")
   reviews    Review[]   @relation("GuestReviews")
   favorites  Favorite[]
+
+  notifications Notification[]
 }
 
 model Property {
@@ -83,7 +85,7 @@ model Property {
   reviewsCount Int   @default(0)
 
   favorites      Favorite[]
-  favoritesCount Int    @default(0)
+  favoritesCount Int        @default(0)
 
   @@index([city])
   @@index([lat, lng])
@@ -98,7 +100,7 @@ model Favorite {
   propertyId String
   createdAt  DateTime @default(now())
 
-  @@unique([userId, propertyId])  // one fave per user+property
+  @@unique([userId, propertyId]) // one fave per user+property
   @@index([userId])
   @@index([propertyId])
 }
@@ -132,9 +134,8 @@ model Booking {
   status    BookingStatus @default(PENDING)
   createdAt DateTime      @default(now())
 
-  feesJson     Json?
-  totalAmount  Int?
-
+  feesJson    Json?
+  totalAmount Int?
 
   // relations
   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
@@ -179,4 +180,28 @@ model AvailabilityBlock {
   createdAt  DateTime @default(now())
 
   @@index([propertyId, startDate, endDate])
+}
+
+
+
+enum NotificationType {
+  BOOKING_STATUS    // approved/rejected/cancelled
+  REVIEW_REPLY      // host replied to guest review
+  KYC_UPDATE        // admin verified/rejected KYC
+}
+
+
+model Notification {
+  id        String            @id @default(cuid())
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  type      NotificationType
+  title     String
+  body      String?
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime          @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
 }

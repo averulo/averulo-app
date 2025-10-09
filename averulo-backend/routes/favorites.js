@@ -5,12 +5,18 @@ import { prisma } from "../lib/prisma.js";
 
 const router = express.Router();
 
+
+
 // POST /api/favorites/:propertyId
 router.post("/:propertyId", auth(true), async (req, res) => {
   const userId = req.user.sub;
   const { propertyId } = req.params;
 
   try {
+
+    if (!propertyId || !/^[a-z0-9]+$/i.test(propertyId)) {
+    return res.status(400).json({ error: "Invalid propertyId" });
+}
     const prop = await prisma.property.findUnique({ where: { id: propertyId }, select: { id: true }});
     if (!prop) return res.status(404).json({ error: "Property not found" });
 
