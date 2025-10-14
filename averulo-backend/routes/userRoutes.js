@@ -1,5 +1,7 @@
 const express = require("express");
 const { PrismaClient } = require("@prisma/client");
+const { getPendingKycUsers } = require('../controllers/userController');
+const { auth, requireRole } = require('../middleware/auth');
 const prisma = new PrismaClient();
 const router = express.Router();
 
@@ -15,6 +17,10 @@ router.get("/", async (req, res) => {
 // PATCH /:id/kyc - Update user KYC status (admin only)
 router.patch("/:id/kyc", auth, requireRole("ADMIN"), async (req, res) => {
   const { kycStatus } = req.body;
+
+  // Route: GET /api/users/kyc/pending
+router.get('/kyc/pending', auth, requireRole('ADMIN'), getPendingKycUsers);
+
 
   // Validate kycStatus
   if (!kycStatus || !["VERIFIED", "REJECTED"].includes(kycStatus)) {
