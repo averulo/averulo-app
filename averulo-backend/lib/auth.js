@@ -34,3 +34,8 @@ export function requireRole(...roles) {
     next();
   };
 }
+
+// Middleware to authenticate users via Bearer token
+// 
+
+
