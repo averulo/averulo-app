@@ -4,8 +4,8 @@ import { z } from "zod";
 
 import { auth } from "../lib/auth.js";
 import {
-    notifyGuestBookingStatus,
-    notifyHostBooking,
+  notifyGuestBookingStatus,
+  notifyHostBooking,
 } from "../lib/notify.js";
 import { prisma } from "../lib/prisma.js";
 import { requireRole } from "../lib/roles.js";
@@ -101,14 +101,90 @@ router.post(
    List my bookings (USER)
    ────────────────────────────────────────────────────────────────────────── */
 router.get("/me", auth(true), async (req, res) => {
-  const bookings = await prisma.booking.findMany({
-    where: { guestId: req.user.sub },
-    orderBy: { createdAt: "desc" }, // or { startDate: "asc" } if you prefer upcoming-first
-    include: {
-      property: { select: { id: true, title: true, city: true } },
-    },
-  });
-  res.json(bookings);
+  try {
+    const bookings = await prisma.booking.findMany({
+      where: { guestId: req.user.sub },
+      orderBy: { createdAt: "desc" },
+      include: {
+        property: { 
+          select: { 
+            id: true, 
+            title: true, 
+            city: true,
+            nightlyPrice: true 
+          } 
+        }
+      },
+    });
+
+    // Add review: null to each booking for consistency with Task 4 spec
+    const bookingsWithReviewField = bookings.map(booking => ({
+      ...booking,
+      review: null
+    }));
+
+    res.json(bookingsWithReviewField);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ 
+      error: "Failed to fetch bookings", 
+      detail: err.message 
+    });
+  }
+});
+/* ──────────────────────────────────────────────────────────────────────────
+   Booking Analytics (Summary) - Task 7
+   ────────────────────────────────────────────────────────────────────────── */
+router.get("/analytics", auth(true), async (req, res) => {
+  try {
+    const userId = req.user?.sub;
+    if (!userId) return res.status(401).json({ error: "Invalid token (no sub)" });
+
+    // Fetch all bookings for the authenticated user with property pricing
+    const bookings = await prisma.booking.findMany({
+      where: { guestId: userId },
+      include: {
+        property: {
+          select: {
+            nightlyPrice: true
+          }
+        }
+      }
+    });
+
+    // Calculate total bookings
+    const totalBookings = bookings.length;
+
+    // Calculate total spent (nights * nightlyPrice for each booking)
+    const totalSpent = bookings.reduce((sum, booking) => {
+      const checkIn = new Date(booking.startDate);
+      const checkOut = new Date(booking.endDate);
+      const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+      const bookingCost = nights * (booking.property?.nightlyPrice || 0);
+      return sum + bookingCost;
+    }, 0);
+
+    // Calculate breakdown by status
+    const breakdown = bookings.reduce((acc, booking) => {
+      const status = booking.status;
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {});
+
+    return res.json({
+      summary: {
+        totalBookings,
+        totalSpent,
+        breakdown
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      error: "Failed to fetch booking analytics",
+      detail: String(err.message || err)
+    });
+  }
 });
 
 /* ──────────────────────────────────────────────────────────────────────────
