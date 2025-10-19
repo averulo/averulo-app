@@ -189,7 +189,7 @@ app.post("/api/verify-otp", otpLimiter, async (req, res) => {
     process.env.JWT_SECRET || "dev-secret",
     { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
   );
-
+  console.log("✅ OTP Verified — token:", token);
   return res.json({ success: true, message: "OTP Verified!", token, user });
 });
 
