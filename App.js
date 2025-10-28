@@ -9,6 +9,10 @@ import UserVerificationScreen from './screens/UserVerificationScreen'
 import WelcomeScreen from './screens/WelcomeScreen'
 
 
+import dotenv from "dotenv";
+dotenv.config();
+
+
 const Stack = createNativeStackNavigator()
 
 export default function App() {
