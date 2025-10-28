@@ -1,49 +1,64 @@
-const express = require("express");
-const { PrismaClient } = require("@prisma/client");
-const { getPendingKycUsers } = require('../controllers/userController');
-const { auth, requireRole } = require('../middleware/auth');
+import express from "express";
+import { PrismaClient } from "@prisma/client";
+import { getPendingKycUsers } from "../controllers/userController.js";
+import { auth, requireRole } from "../lib/auth.js";
+
 const prisma = new PrismaClient();
 const router = express.Router();
 
-// Assuming auth and requireRole are imported from a middleware file, e.g.:
-// const { auth, requireRole } = require('../middleware/auth');
-
-// GET / - Fetch all users
+// ✅ GET /api/users - Fetch all users
 router.get("/", async (req, res) => {
-  const users = await prisma.user.findMany();
-  res.json(users);
+  try {
+    const users = await prisma.user.findMany();
+    res.json(users);
+  } catch (err) {
+    console.error("Error fetching users:", err);
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
 });
 
-// PATCH /:id/kyc - Update user KYC status (admin only)
+// ✅ GET /api/users/kyc/pending - Admin fetch pending KYC users
+router.get("/kyc/pending", auth, requireRole("ADMIN"), getPendingKycUsers);
+
+// ✅ PATCH /api/users/:id/kyc - Admin update KYC status
 router.patch("/:id/kyc", auth, requireRole("ADMIN"), async (req, res) => {
-  const { kycStatus } = req.body;
+  const { status } = req.body;
+  const userId = Number(req.params.id);
 
-  // Route: GET /api/users/kyc/pending
-router.get('/kyc/pending', auth, requireRole('ADMIN'), getPendingKycUsers);
+  console.log("PATCH /users/:id/kyc hit");
+  console.log("User ID:", userId);
+  console.log("Request body:", req.body);
 
-
-  // Validate kycStatus
-  if (!kycStatus || !["VERIFIED", "REJECTED"].includes(kycStatus)) {
-    return res.status(400).json({ message: 'Invalid kycStatus: Must be "VERIFIED" or "REJECTED"' });
+  // ✅ Validate input
+  if (!status || !["VERIFIED", "REJECTED"].includes(status)) {
+    return res
+      .status(400)
+      .json({ message: 'Invalid status. Must be "VERIFIED" or "REJECTED"' });
   }
 
   try {
-    const userId = Number(req.params.id);
+    // ✅ Check if user exists
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // ✅ Update user KYC
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { kycStatus },
+      data: { kycStatus: status },
       select: { id: true, email: true, kycStatus: true },
     });
 
-    res.status(200).json(updatedUser);
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.log("✅ Updated user:", updatedUser);
+    res.status(200).json({
+      message: "KYC status updated successfully",
+      user: updatedUser,
+    });
+  } catch (err) {
+    console.error("Error updating KYC:", err);
+    res.status(500).json({ error: "Server error while updating KYC" });
   }
 });
 
-module.exports = router;
+export default router;

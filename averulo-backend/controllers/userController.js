@@ -1,12 +1,13 @@
 // controllers/userController.js
-const { PrismaClient } = require('@prisma/client');
+import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
+
 
 /**
  * GET /api/users/kyc/pending
  * Admin-only: Fetch users whose KYC status is 'PENDING'
  */
-exports.getPendingKycUsers = async (req, res) => {
+export const getPendingKycUsers = async (req, res) => {
   try {
     const pendingUsers = await prisma.user.findMany({
       where: { kycStatus: 'PENDING' },

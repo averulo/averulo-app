@@ -1,7 +1,4 @@
 // index.js
-import dotenv from "dotenv";
-dotenv.config();
-
 import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
@@ -18,6 +15,12 @@ import authRoutes from "./routes/auth.js";
 import bookingsRouter from "./routes/bookings.js";
 import paymentsRouter, { paystackWebhook } from "./routes/payments.js";
 import propertiesRouter from "./routes/properties.js";
+import userRoutes from "./routes/userRoutes.js";
+
+import dotenv from "dotenv";
+dotenv.config();
+
+console.log("DATABASE_URL:", process.env.DATABASE_URL);
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -29,6 +32,16 @@ app.post(
   express.raw({ type: "application/json" }),
   paystackWebhook
 );
+
+// mount routers
+app.use("/api/auth", authRoutes);
+app.use("/api/properties", propertiesRouter);
+app.use("/api/bookings", bookingsRouter);
+app.use("/api/payments", paymentsRouter);
+
+// KYC endpoint
+
+app.use("/api/users", userRoutes);
 
 // ——— Rest of middleware (safe AFTER webhook) ———
 app.use(
@@ -147,12 +160,14 @@ app.post("/api/verify-otp", otpLimiter, async (req, res) => {
   return res.json({ success: true, message: "OTP Verified!", token, user });
 });
 
-// mount routers
-app.use("/api/auth", authRoutes);
-app.use("/api/properties", propertiesRouter);
-app.use("/api/bookings", bookingsRouter);
-app.use("/api/payments", paymentsRouter);
+app.use((req, res, next) => {
+  console.log(`[${req.method}] ${req.originalUrl}`);
+  next();
+});
+
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 API listening on http://0.0.0.0:${PORT}`);
 });
+
+
