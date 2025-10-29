@@ -13,16 +13,18 @@ console.log("Loaded SMTP from env:");
 console.log("SMTP_USER:", process.env.SMTP_USER);
 console.log("SMTP_PASS:", process.env.SMTP_PASS);
 
+import helmet from "helmet";
+import morgan from "morgan";
 import { auth } from "./lib/auth.js";
 import { getTransporter } from "./lib/mailer.js";
 import { prisma } from "./lib/prisma.js";
-
 import adminRouter from "./routes/admin.js";
 import authRoutes from "./routes/auth.js";
 import availabilityRouter from "./routes/availability.js";
 import bookingsRouter from "./routes/bookings.js";
 import favoritesRouter from "./routes/favorites.js";
 import hostRouter from "./routes/host.js";
+
 import notificationsRouter from "./routes/notifications.js";
 import paymentsRouter, { paystackWebhook } from "./routes/payments.js";
 import propertiesRouter from "./routes/properties.js";
@@ -209,6 +211,25 @@ app.get("/test-email", async (req, res) => {
   }
 });
 
+app.get("/api/health", async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ ok: true, status: "healthy" });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.get("/api/version", (req, res) => {
+  res.json({
+    app: "Averulo API",
+    version: "1.0.0",
+    env: process.env.NODE_ENV || "development",
+    build: new Date().toISOString(),
+  });
+});
+
+
 // mount routers
 app.use("/api/auth", authRoutes);
 app.use("/api/properties", propertiesRouter);
@@ -221,6 +242,8 @@ app.use("/api/host", hostRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/users", userRoutes);
+app.use(morgan("dev"));
+app.use(helmet());
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 API listening on http://0.0.0.0:${PORT}`);
 });
