@@ -3,14 +3,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
 import {
-    Dimensions,
-    FlatList,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Dimensions,
+  FlatList,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
@@ -50,7 +50,7 @@ const business = [
 
 export default function ExploreHomeScreen() {
   const navigation = useNavigation();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [activeChip, setActiveChip] = useState('All');
 
   // ✅ Checklist reflects real user data; card shows only if something is missing
@@ -77,17 +77,45 @@ export default function ExploreHomeScreen() {
         {/* 1) Header */}
         <View style={styles.header}>
           <View style={styles.meRow}>
-            <Image source={require('../assets/icons/guest.png')} style={styles.avatar} />
+            <Image
+              source={require('../assets/icons/guest.png')}
+              style={styles.avatar}
+            />
             <View style={{ marginLeft: 10 }}>
-              <Text style={styles.welcomeMuted}>Welcome!</Text>
-              <Text style={styles.welcomeName}>{user?.name || user?.email || 'Guest'}</Text>
+              <Text style={styles.welcomeMuted}>
+                {user?.name ? 'Welcome back 👋' : 'Welcome!'}
+              </Text>
+              <Text style={styles.welcomeName}>
+              {user?.name ? `Hi, ${user.name}` : user?.email || 'Welcome Guest'}
+            </Text>
             </View>
           </View>
+          <TouchableOpacity onPress={signOut} style={styles.logoutBtn}>
+          <Text style={styles.logoutText}>Log out</Text>
+        </TouchableOpacity>
           <View style={styles.headerIcons}>
             <Ionicons name="notifications-outline" size={22} color="#111827" />
             <View style={{ width: 12 }} />
             <Ionicons name="menu" size={22} color="#111827" />
           </View>
+        </View>
+
+        {/* Mini Profile Summary */}
+        <View style={styles.miniProfileBox}>
+          <Image
+            source={require('../assets/icons/guest.png')}
+            style={styles.miniAvatar}
+          />
+          <View style={{ marginLeft: 12, flex: 1 }}>
+            <Text style={styles.profileName}>{user?.name || 'Guest User'}</Text>
+            <Text style={styles.profileEmail}>{user?.email || 'Not logged in'}</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('EditProfileScreen')}
+            style={styles.editBtn}
+          >
+            <Ionicons name="create-outline" size={18} color="#000A63" />
+          </TouchableOpacity>
         </View>
 
         {/* 2) Search bar (static for now) */}
@@ -123,6 +151,22 @@ export default function ExploreHomeScreen() {
                 <Text style={styles.rowText}>{s.label}</Text>
               </View>
             ))}
+            {/* Profile Progress Bar */}
+            <View style={styles.progressBarOuter}>
+              <View
+                style={[
+                  styles.progressBarInner,
+                  {
+                    width: `${Math.round(
+                      (steps.filter((s) => s.done).length / steps.length) * 100
+                    )}%`,
+                  },
+                ]}
+              />
+            </View>
+            <Text style={styles.progressLabel}>
+              {steps.filter((s) => s.done).length}/{steps.length} completed
+            </Text>
             <TouchableOpacity style={styles.completeBtn} onPress={goComplete}>
               <Text style={styles.completeBtnText}>Complete Now</Text>
             </TouchableOpacity>
@@ -282,4 +326,54 @@ const styles = StyleSheet.create({
   bizImg: { width: '100%', height: 90 },
   bizTitle: { color: '#111827', fontWeight: '600', marginTop: 6, paddingHorizontal: 8 },
   bizPrice: { color: '#111827', fontWeight: '700', paddingHorizontal: 8, marginBottom: 8 },
+
+  logoutBtn: {
+  backgroundColor: '#F3F4F6',
+  paddingVertical: 6,
+  paddingHorizontal: 12,
+  borderRadius: 8,
+  alignSelf: 'flex-start',
+  marginTop: 8,
+},
+logoutText: {
+  color: '#000A63',
+  fontWeight: '600',
+},
+
+progressBarOuter: {
+  height: 8,
+  backgroundColor: '#E5E7EB',
+  borderRadius: 10,
+  overflow: 'hidden',
+  marginBottom: 6,
+},
+progressBarInner: {
+  height: 8,
+  backgroundColor: '#000A63',
+  borderRadius: 10,
+},
+progressLabel: {
+  fontSize: 12,
+  color: '#333',
+  textAlign: 'right',
+  marginBottom: 10,
+},
+miniProfileBox: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: BORDER,
+  borderRadius: 10,
+  padding: 12,
+  backgroundColor: '#fff',
+  marginBottom: 12,
+},
+miniAvatar: { width: 40, height: 40, borderRadius: 20 },
+profileName: { fontWeight: '600', color: '#111827', fontSize: 15 },
+profileEmail: { color: '#6B7280', fontSize: 13 },
+editBtn: {
+  backgroundColor: '#F3F4F6',
+  padding: 6,
+  borderRadius: 6,
+},
 });

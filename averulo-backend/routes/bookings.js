@@ -236,5 +236,46 @@ router.patch("/:id/approve", auth(true), requireRole("HOST", "ADMIN"), validate(
   }
 });
 
-// ... (reject, cancel, and status routes remain unchanged)
+/* ──────────────────────────────────────────────────────────────
+   Cancel booking (User or Admin)
+   ────────────────────────────────────────────────────────────── */
+router.patch("/:id/cancel", auth(true), async (req, res) => {
+  try {
+    const booking = await prisma.booking.findUnique({
+      where: { id: req.params.id },
+      include: { guest: true, property: { select: { title: true, hostId: true } } },
+    });
+    if (!booking) return res.status(404).json({ error: "Booking not found" });
+
+    // Only allow the guest who booked it, or admin
+    if (req.user.sub !== booking.guest.id && req.user.role !== "ADMIN") {
+      return res.status(403).json({ error: "Not allowed to cancel this booking" });
+    }
+
+    // Only allow cancelling if pending or approved
+    if (!["PENDING", "APPROVED"].includes(booking.status)) {
+      return res.status(400).json({ error: "Cannot cancel this booking" });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: booking.id },
+      data: { status: "CANCELLED" },
+    });
+
+    // Optional notification to host/guest
+    await notifyGuestBookingStatus({
+      guestEmail: booking.guest.email,
+      propertyTitle: booking.property.title,
+      status: "CANCELLED",
+      start: new Date(booking.startDate).toISOString().slice(0, 10),
+      end: new Date(booking.endDate).toISOString().slice(0, 10),
+    }).catch(() => {});
+
+    res.json({ ok: true, booking: updated });
+  } catch (err) {
+    console.error("❌ Cancel booking failed:", err);
+    res.status(500).json({ error: "Failed to cancel booking", detail: err.message });
+  }
+});
+
 export default router;

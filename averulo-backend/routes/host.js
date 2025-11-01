@@ -2,6 +2,7 @@
 import express from "express";
 import { auth } from "../lib/auth.js";
 import { prisma } from "../lib/prisma.js";
+import { requireRole } from "../lib/roles.js";
 
 const router = express.Router();
 
@@ -99,6 +100,49 @@ router.get("/stats", auth(true), async (req, res) => {
   } catch (err) {
     console.error("[/api/host/stats] error:", err);
     res.status(500).json({ error: "Failed to load stats", detail: err.message });
+  }
+});
+
+router.get("/dashboard", auth(true), requireRole("HOST", "ADMIN"), async (req, res) => {
+  try {
+    const userId = req.user.sub;
+
+    // 1️⃣ Fetch properties owned by host
+    const properties = await prisma.property.findMany({
+      where: { hostId: userId },
+      select: { id: true },
+    });
+    const propertyIds = properties.map((p) => p.id);
+
+    // 2️⃣ Aggregate bookings linked to those properties
+    const bookings = await prisma.booking.findMany({
+      where: { propertyId: { in: propertyIds } },
+      include: { payments: true },
+    });
+
+    const totalBookings = bookings.length;
+    const activeBookings = bookings.filter((b) => b.status === "APPROVED").length;
+
+    // 3️⃣ Compute revenue from payments
+    const payments = await prisma.payment.findMany({
+      where: { booking: { propertyId: { in: propertyIds } }, status: "SUCCESS" },
+    });
+
+    const totalRevenue = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    // 4️⃣ Respond with summary
+    return res.json({
+      ok: true,
+      summary: {
+        totalProperties: properties.length,
+        totalBookings,
+        activeBookings,
+        totalRevenue,
+      },
+    });
+  } catch (err) {
+    console.error("Host dashboard error:", err);
+    res.status(500).json({ error: "Failed to load host dashboard", detail: err.message });
   }
 });
 

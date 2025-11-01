@@ -46,6 +46,9 @@ model User {
   createdAt DateTime  @default(now())
 
   kycStatus KycStatus @default(PENDING)
+  kycType   String?
+  kycFrontUrl String?
+  kycBackUrl  String?
 
   // 🔐 add these for OTP
   otp String? // store last OTP (dev/MVP)

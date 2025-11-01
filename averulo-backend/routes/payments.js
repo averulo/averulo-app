@@ -238,6 +238,42 @@ router.post("/", auth(true), validate(createBookingSchema), async (req, res) => 
   }
 });
 
+router.post("/webhook/paystack", express.raw({ type: "application/json" }), async (req, res) => {
+  try {
+    const signature = req.headers["x-paystack-signature"];
+    const computed = crypto
+      .createHmac("sha512", process.env.PAYSTACK_SECRET_KEY)
+      .update(req.body)
+      .digest("hex");
+
+    if (signature !== computed) {
+      return res.status(400).send("Invalid signature");
+    }
+
+    const event = JSON.parse(req.body.toString());
+    console.log("✅ Paystack webhook received:", event.event);
+
+    // handle charge.success, transfer.success, etc.
+    if (event.event === "charge.success") {
+      const ref = event.data.reference;
+      await prisma.payment.updateMany({
+        where: { reference: ref },
+        data: { status: "SUCCESS", raw: event.data },
+      });
+      await prisma.booking.updateMany({
+        where: { paymentRef: ref },
+        data: { paymentStatus: "SUCCESS" },
+      });
+    }
+
+    res.sendStatus(200);
+  } catch (err) {
+    console.error("Webhook error:", err);
+    res.status(500).send("Webhook failed");
+  }
+});
+
+
 /* ──────────────────────────────────────────────────────────────
    My bookings
    ────────────────────────────────────────────────────────────── */
@@ -353,6 +389,30 @@ router.patch("/:id/cancel", auth(true), validate(idParamSchema, "params"), async
   }
 });
 
+router.post("/verify", auth(true), async (req, res) => {
+  const { reference } = req.body;
+  if (!reference) return res.status(400).json({ error: "Reference required" });
+
+  const response = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+    headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}` },
+  });
+  const data = await response.json();
+
+  if (!data.status) return res.status(400).json({ error: "Verification failed" });
+
+  await prisma.payment.updateMany({
+    where: { reference },
+    data: { status: data.data.status.toUpperCase(), raw: data.data },
+  });
+
+  await prisma.booking.updateMany({
+    where: { paymentRef: reference },
+    data: { paymentStatus: data.data.status.toUpperCase() },
+  });
+
+  res.json({ ok: true, data: data.data });
+});
+
 // VERIFY
 router.get("/verify/:reference", auth(true), async (req, res) => {
   try {
@@ -402,11 +462,19 @@ router.get("/verify/:reference", auth(true), async (req, res) => {
   }
 });
 
-// LIST MINE
+// LIST MINE (Payment History)
 router.get("/me", auth(true), async (req, res) => {
+  const { status, limit } = req.query;
+
+  const where = {
+    booking: { guestId: req.user.sub },
+    ...(status ? { status: status.toUpperCase() } : {}),
+  };
+
   const rows = await prisma.payment.findMany({
-    where: { booking: { guestId: req.user.sub } },
+    where,
     orderBy: { createdAt: "desc" },
+    take: limit ? parseInt(limit) : undefined,
     include: {
       booking: {
         select: {
@@ -419,7 +487,8 @@ router.get("/me", auth(true), async (req, res) => {
       },
     },
   });
-  res.json(rows);
+
+  res.json({ ok: true, payments: rows });
 });
 
 // BY BOOKING

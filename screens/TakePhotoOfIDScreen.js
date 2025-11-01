@@ -1,33 +1,34 @@
-// screens/TakePhotoOfIDScreen.js
-import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import * as ImagePicker from "expo-image-picker";
+import { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Image,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { useAuth } from '../hooks/useAuth';
-import { API_BASE } from '../lib/api';
+} from "react-native";
+import { useAuth } from "../hooks/useAuth";
+import { uploadKyc } from "../lib/api";
 
 export default function TakePhotoOfIDScreen({ route }) {
   const navigation = useNavigation();
   const { idType } = route.params || {};
-  const { token, refreshUser, user } = useAuth();
+  const { token, refreshUser } = useAuth();
 
   const [frontPhoto, setFrontPhoto] = useState(null);
   const [backPhoto, setBackPhoto] = useState(null);
-  const [currentStep, setCurrentStep] = useState('front');
+  const [currentStep, setCurrentStep] = useState("front");
   const [submitting, setSubmitting] = useState(false);
 
+  // ✅ open camera to capture ID
   const openCamera = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('Permission required', 'Camera access is needed!');
+      Alert.alert("Permission required", "Camera access is needed!");
       return;
     }
 
@@ -37,77 +38,58 @@ export default function TakePhotoOfIDScreen({ route }) {
       quality: 1,
     });
 
-    if (!result.canceled && result.assets.length > 0) {
+    if (!result.canceled && result.assets?.length > 0) {
       const uri = result.assets[0].uri;
-      if (currentStep === 'front') {
+      if (currentStep === "front") {
         setFrontPhoto(uri);
-        setCurrentStep('back');
+        setCurrentStep("back");
       } else {
         setBackPhoto(uri);
       }
     }
   };
 
+  // ✅ Submit both sides to backend
   const handleSubmit = async () => {
     if (!frontPhoto || !backPhoto) {
-      Alert.alert('Missing photo', 'Please capture both sides of your ID');
-      return;
+      return Alert.alert("Missing photo", "Please capture both sides of your ID.");
     }
     if (!token) {
-      Alert.alert('Error', 'You must be logged in.');
-      return;
+      return Alert.alert("Error", "You must be logged in to upload your ID.");
     }
 
     try {
       setSubmitting(true);
+      Alert.alert("Uploading", "Please wait while we upload your ID...");
 
-      // Convert to FormData
-      const formData = new FormData();
-      formData.append('idType', idType || 'UNKNOWN');
-      formData.append('email', user?.email || '');
-      formData.append('front', {
-        uri: frontPhoto,
-        name: 'front.jpg',
-        type: 'image/jpeg',
-      });
-      formData.append('back', {
-        uri: backPhoto,
-        name: 'back.jpg',
-        type: 'image/jpeg',
-      });
+      const result = await uploadKyc(token, idType || "UNKNOWN", frontPhoto, backPhoto);
+      console.log("✅ KYC Upload result:", result);
 
-      const res = await fetch(`${API_BASE}/api/upload-id`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `Upload failed (${res.status})`);
-      }
-
-      const data = await res.json();
-      console.log('✅ Upload success:', data);
-
-      // 🔄 Immediately refresh user profile (so Explore updates)
       await refreshUser();
+      Alert.alert("Success", "Your KYC has been submitted for verification!");
 
-      Alert.alert('Success', 'Your ID has been submitted.');
-      navigation.navigate('Home'); // or MainTabs/Explore depending on your nav setup
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Home" }],
+      });
     } catch (err) {
-      console.error('Upload error:', err);
-      Alert.alert('Error', err.message || 'Failed to upload ID');
+      console.error("❌ KYC upload error:", err);
+      Alert.alert("Error", err.message || "Failed to upload ID.");
     } finally {
       setSubmitting(false);
     }
   };
 
+  // ✅ Reset both photos
+  const handleRetake = () => {
+    setFrontPhoto(null);
+    setBackPhoto(null);
+    setCurrentStep("front");
+  };
+
   return (
     <View style={styles.container}>
-      {/* Back Header */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -116,16 +98,20 @@ export default function TakePhotoOfIDScreen({ route }) {
       </View>
 
       {/* Image Preview */}
-      <TouchableOpacity style={styles.imageWrapper} onPress={openCamera} disabled={submitting}>
+      <TouchableOpacity
+        style={styles.imageWrapper}
+        onPress={openCamera}
+        disabled={submitting}
+      >
         <Image
           source={
-            currentStep === 'front'
+            currentStep === "front"
               ? frontPhoto
                 ? { uri: frontPhoto }
-                : require('../assets/images/id-card-illustration.png')
+                : require("../assets/images/id-card-illustration.png")
               : backPhoto
               ? { uri: backPhoto }
-              : require('../assets/images/id-card-illustration.png')
+              : require("../assets/images/id-card-illustration.png")
           }
           style={styles.image}
           resizeMode="contain"
@@ -135,27 +121,21 @@ export default function TakePhotoOfIDScreen({ route }) {
       {/* Info Box */}
       <View style={styles.infoBox}>
         <Text style={styles.infoTitle}>
-          {currentStep === 'front' ? 'Front of ID' : 'Back of ID'}
+          {currentStep === "front" ? "Front of ID" : "Back of ID"}
         </Text>
         <Text style={styles.infoText}>
-          Center your ID in the frame and we’ll take the photo automatically
+          Center your ID in the frame and we’ll take the photo automatically.
         </Text>
       </View>
 
-      {/* Retake */}
+      {/* Retake Button */}
       {(frontPhoto || backPhoto) && !submitting && (
-        <TouchableOpacity
-          onPress={() => {
-            setFrontPhoto(null);
-            setBackPhoto(null);
-            setCurrentStep('front');
-          }}
-        >
+        <TouchableOpacity onPress={handleRetake}>
           <Text style={styles.retakeText}>Retake Photo(s)</Text>
         </TouchableOpacity>
       )}
 
-      {/* Submit Button */}
+      {/* Submit */}
       {frontPhoto && backPhoto && (
         <View style={styles.footer}>
           <TouchableOpacity
@@ -163,10 +143,20 @@ export default function TakePhotoOfIDScreen({ route }) {
             onPress={handleSubmit}
             disabled={submitting}
           >
-            <Text style={styles.submitText}>
-              {submitting ? 'Submitting...' : 'Submit Photos'}
-            </Text>
+            {submitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.submitText}>Submit Photos</Text>
+            )}
           </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Uploading Overlay */}
+      {submitting && (
+        <View style={styles.overlay}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.overlayText}>Uploading your ID...</Text>
         </View>
       )}
     </View>
@@ -174,23 +164,30 @@ export default function TakePhotoOfIDScreen({ route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000', paddingHorizontal: 20, paddingTop: 50 },
-  header: { flexDirection: 'row', alignItems: 'center', marginBottom: 30 },
-  title: { color: '#fff', fontSize: 20, fontWeight: '600', marginLeft: 10 },
-  imageWrapper: { alignItems: 'center', marginBottom: 20 },
+  container: { flex: 1, backgroundColor: "#000", paddingHorizontal: 20, paddingTop: 50 },
+  header: { flexDirection: "row", alignItems: "center", marginBottom: 30 },
+  title: { color: "#fff", fontSize: 20, fontWeight: "600", marginLeft: 10 },
+  imageWrapper: { alignItems: "center", marginBottom: 20 },
   image: {
-    width: '100%',
+    width: "100%",
     height: 200,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#1E293B',
-    backgroundColor: '#1E293B',
+    borderColor: "#1E293B",
+    backgroundColor: "#1E293B",
   },
-  infoBox: { backgroundColor: '#0F2D52', padding: 15, borderRadius: 10, marginBottom: 20 },
-  infoTitle: { color: 'white', fontWeight: '600', marginBottom: 5 },
-  infoText: { color: 'white', fontSize: 14 },
-  retakeText: { color: 'white', fontSize: 16, textAlign: 'center', marginBottom: 20 },
-  footer: { marginTop: 'auto', marginBottom: 20 },
-  submitButton: { backgroundColor: '#0094FF', padding: 16, borderRadius: 8 },
-  submitText: { color: 'white', fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
+  infoBox: { backgroundColor: "#0F2D52", padding: 15, borderRadius: 10, marginBottom: 20 },
+  infoTitle: { color: "white", fontWeight: "600", marginBottom: 5 },
+  infoText: { color: "white", fontSize: 14 },
+  retakeText: { color: "white", fontSize: 16, textAlign: "center", marginBottom: 20 },
+  footer: { marginTop: "auto", marginBottom: 20 },
+  submitButton: { backgroundColor: "#0094FF", padding: 16, borderRadius: 8 },
+  submitText: { color: "white", fontSize: 16, fontWeight: "bold", textAlign: "center" },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  overlayText: { color: "#fff", fontSize: 16, marginTop: 10 },
 });

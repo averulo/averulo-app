@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import NotificationBell from '../components/NotificationBell';
 import EditProfileScreen from '../screens/EditProfileScreen';
 import ExploreHomeScreen from '../screens/ExploreHomeScreen';
+import MyBookingsScreen from "../screens/MyBookingsScreen";
 import NotificationsScreen from '../screens/NotificationsScreen';
 import SavedScreen from '../screens/SavedScreen';
 
@@ -66,6 +67,17 @@ export default function MainTabs({ navigation }) {
           title: 'Notifications',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="notifications-outline" size={size} color={color} />
+          ),
+        }}
+      />
+
+      <Tab.Screen
+        name="MyBookings"
+        component={MyBookingsScreen}
+        options={{
+          title: "My Bookings",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calendar-outline" size={size} color={color} />
           ),
         }}
       />

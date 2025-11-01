@@ -54,37 +54,41 @@ export default function OtpScreen() {
   };
 
   const handleContinue = async () => {
-    try {
-      const otp = code.join('');
+  try {
+    const otp = code.join('');
 
-      const res = await axios.post("http://192.168.100.6:4000/api/verify-otp", {
-        email,
-        otp,
+    const res = await axios.post("http://192.168.100.6:4000/api/verify-otp", {
+      email,
+      otp,
+    });
+
+    const { user, token } = res.data;
+
+    // ✅ Save token + load user into AuthContext
+    await signIn(token);
+
+    // ✅ Navigate based on KYC status
+    if (user.kycStatus === 'VERIFIED') {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs' }],
       });
-
-      const user = res.data.user;
-
-      if (user.kycStatus === 'VERIFIED') {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Home' }],
-        });
-      } else {
-        navigation.reset({
-          index: 0,
-          routes: [
-            {
-              name: 'UserVerification',
-              params: { email: user.email },
-            },
-          ],
-        });
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Failed to verify OTP');
+    } else {
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: 'UserVerification',
+            params: { email: user.email },
+          },
+        ],
+      });
     }
-  };
+  } catch (err) {
+    console.error(err);
+    alert('Failed to verify OTP');
+  }
+};
 
   return (
     <SafeAreaView style={styles.safeArea}>

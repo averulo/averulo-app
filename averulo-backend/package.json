@@ -13,11 +13,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-<<<<<<< HEAD
-    "@prisma/client": "^6.16.1",
-=======
     "@prisma/client": "^6.16.2",
->>>>>>> origin/new_feature
     "bcryptjs": "^3.0.2",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
@@ -37,10 +33,6 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.10",
-<<<<<<< HEAD
-    "prisma": "^6.16.1"
-=======
     "prisma": "^6.16.2"
->>>>>>> origin/new_feature
   }
 }
