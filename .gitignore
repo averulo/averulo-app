@@ -63,3 +63,4 @@ android/local.properties
 # Misc
 .DS_Store
 uploads/
+averulo-backend/.env.production
