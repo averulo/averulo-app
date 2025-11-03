@@ -500,4 +500,49 @@ router.get("/by-booking/:bookingId", auth(true), async (req, res) => {
   res.json(rows);
 });
 
+/* ──────────────────────────────────────────────────────────────
+   Payment History (USER/HOST)
+   - GET /api/payments/history?status=SUCCESS&limit=10
+   ────────────────────────────────────────────────────────────── */
+router.get("/history", auth(true), async (req, res) => {
+  try {
+    const { status, limit } = req.query;
+
+    const where = {
+      booking: { guestId: req.user.sub },
+      ...(status ? { status: status.toString().toUpperCase() } : {}),
+    };
+
+    const payments = await prisma.payment.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: limit ? Math.min(50, parseInt(limit.toString(), 10)) : undefined,
+      select: {
+        id: true,
+        bookingId: true,
+        amount: true,
+        currency: true,
+        status: true,
+        createdAt: true,
+        booking: {
+          select: {
+            property: { select: { title: true } },
+          },
+        },
+      },
+    });
+
+    const formatted = payments.map(p => ({
+      ...p,
+      property: p.booking?.property?.title || null,
+      booking: undefined, // remove nested booking object
+    }));
+
+    res.json({ ok: true, payments: formatted });
+  } catch (err) {
+    console.error("[/api/payments/history] error:", err);
+    res.status(500).json({ ok: false, error: "Failed to fetch payment history", detail: err.message });
+  }
+});
+
 export default router;
