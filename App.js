@@ -1,7 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthProvider } from './hooks/useAuth';
-import { NotificationsProvider } from './hooks/useNotifications'; // 👈
+import { NotificationsProvider } from './hooks/useNotifications';
 
 import MainTabs from './navigation/MainTabs';
 
@@ -10,8 +10,9 @@ import AddPhoneScreen from './screens/AddPhoneScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
 import InputNINScreen from './screens/InputNINScreen';
 import LoginScreen from './screens/LoginScreen';
-import NotificationsScreen from './screens/NotificationsScreen'; // ✅ add this
+import NotificationsScreen from './screens/NotificationsScreen';
 import OtpScreen from './screens/OtpScreen';
+import PaymentHistoryScreen from './screens/PaymentHistoryScreen'; // ✅ Add this import
 import PropertiesListScreen from './screens/PropertiesListScreen';
 import SignUpScreen from './screens/SignUpScreen';
 import SplashScreen from './screens/SplashScreen';
@@ -37,8 +38,9 @@ export default function App() {
             {/* 👇 Main app with bottom tabs */}
             <Stack.Screen name="MainTabs" component={MainTabs} />
 
-            {/* ✅ This line fixes the navigation error */}
+            {/* ✅ Additional screens */}
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} /> {/* ✅ Add this line */}
 
             {/* Other flows */}
             <Stack.Screen name="Home" component={PropertiesListScreen} />

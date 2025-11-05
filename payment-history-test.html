@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment History - Ave Hotel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            min-height: 100vh;
+        }
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+        .shimmer {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 1000px 100%;
+            animation: shimmer 2s infinite;
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .card-hover {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-hover:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 60px rgba(102, 126, 234, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <script>
+        const icons = {
+            creditCard: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>`,
+            checkCircle: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+            calendar: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>`,
+            dollarSign: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
+            refreshCw: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>`,
+        };
+
+        const mockPayments = [
+            {
+                id: '1',
+                propertyTitle: 'Luxury Ocean View Suite - Ave Grand Hotel',
+                amount: 45000,
+                date: '2025-10-28T14:30:00Z',
+                status: 'SUCCESS',
+                paymentMethod: 'Credit Card',
+                transactionId: 'TXN-2025-001234'
+            },
+            {
+                id: '2',
+                propertyTitle: 'Executive Business Room - Ave Downtown',
+                amount: 28500,
+                date: '2025-10-15T09:15:00Z',
+                status: 'SUCCESS',
+                paymentMethod: 'Debit Card',
+                transactionId: 'TXN-2025-001189'
+            },
+            {
+                id: '3',
+                propertyTitle: 'Deluxe Garden Villa - Ave Resort & Spa',
+                amount: 67800,
+                date: '2025-09-22T16:45:00Z',
+                status: 'FAILED',
+                paymentMethod: 'Credit Card',
+                transactionId: 'TXN-2025-000956',
+                failureReason: 'Insufficient funds'
+            }
+        ];
+
+        let loading = true;
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-NG', {
+                style: 'currency',
+                currency: 'NGN',
+                minimumFractionDigits: 0,
+            }).format(amount);
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return {
+                date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+            };
+        }
+
+        function getStatusConfig(status) {
+            const configs = {
+                SUCCESS: {
+                    label: 'Success',
+                    icon: icons.checkCircle,
+                    bgColor: 'bg-gradient-to-r from-green-400 to-emerald-500',
+                    textColor: 'text-white',
+                },
+                FAILED: {
+                    label: 'Failed',
+                    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>`,
+                    bgColor: 'bg-gradient-to-r from-red-400 to-rose-500',
+                    textColor: 'text-white',
+                },
+                PENDING: {
+                    label: 'Pending',
+                    icon: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+                    bgColor: 'bg-gradient-to-r from-yellow-400 to-orange-500',
+                    textColor: 'text-white',
+                }
+            };
+            return configs[status];
+        }
+
+        function render() {
+            const successCount = mockPayments.filter(p => p.status === 'SUCCESS').length;
+            const totalSpent = mockPayments.filter(p => p.status === 'SUCCESS').reduce((sum, p) => sum + p.amount, 0);
+
+            document.getElementById('app').innerHTML = `
+                <div class="p-4 md:p-8">
+                    <div class="max-w-5xl mx-auto">
+                        <div class="glass-effect rounded-3xl shadow-2xl p-6 md:p-8 mb-6">
+                            <h1 class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent mb-3 flex items-center gap-3">
+                                <span class="w-10 h-10">${icons.creditCard}</span>
+                                Payment History
+                            </h1>
+                            <p class="text-gray-700 text-lg">View all your booking payments and transaction details</p>
+                        </div>
+
+                        <div class="space-y-5">
+                            ${mockPayments.map(payment => {
+                                const { date, time } = formatDate(payment.date);
+                                const statusConfig = getStatusConfig(payment.status);
+                                return `
+                                    <div class="glass-effect card-hover rounded-2xl shadow-xl p-6 md:p-8">
+                                        <div class="flex items-start justify-between gap-4 mb-6">
+                                            <div class="flex-1">
+                                                <h3 class="text-xl md:text-2xl font-bold text-gray-900 mb-3">${payment.propertyTitle}</h3>
+                                                <div class="flex items-center gap-3 text-sm md:text-base text-gray-600">
+                                                    <span class="font-mono font-semibold bg-gray-100 px-3 py-1 rounded-lg">${payment.transactionId}</span>
+                                                    <span>•</span>
+                                                    <span>${payment.paymentMethod}</span>
+                                                </div>
+                                            </div>
+                                            <div class="inline-flex items-center gap-2 px-4 py-2.5 rounded-full ${statusConfig.bgColor} shadow-lg">
+                                                <span class="w-5 h-5 ${statusConfig.textColor}">${statusConfig.icon}</span>
+                                                <span class="text-sm font-bold ${statusConfig.textColor}">${statusConfig.label}</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center justify-between pt-6 border-t-2 border-gray-200">
+                                            <div class="flex items-center gap-3">
+                                                <span class="w-5 h-5">${icons.calendar}</span>
+                                                <span class="font-semibold">${date}</span>
+                                                <span class="text-gray-500">${time}</span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="w-6 h-6 text-purple-600">${icons.dollarSign}</span>
+                                                <span class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                                                    ${formatCurrency(payment.amount)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+
+                        <div class="mt-8 rounded-3xl shadow-2xl p-6 md:p-8 text-white" style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);">
+                            <div class="flex items-center justify-between flex-wrap gap-6">
+                                <div class="flex-1 min-w-[200px] text-center">
+                                    <p class="text-purple-100 text-sm mb-2">Total Transactions</p>
+                                    <p class="text-5xl font-black">${mockPayments.length}</p>
+                                </div>
+                                <div class="flex-1 min-w-[200px] text-center">
+                                    <p class="text-purple-100 text-sm mb-2">Successful</p>
+                                    <p class="text-5xl font-black">${successCount}</p>
+                                </div>
+                                <div class="flex-1 min-w-[200px] text-center">
+                                    <p class="text-purple-100 text-sm mb-2">Total Spent</p>
+                                    <p class="text-4xl font-black">${formatCurrency(totalSpent)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        setTimeout(() => {
+            loading = false;
+            render();
+        }, 1000);
+    </script>
+</body>
+</html>
