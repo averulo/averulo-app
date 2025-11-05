@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../hooks/useAuth";
 import { API_BASE } from "../lib/api"; // 👈 your existing base URL helper
 
+
 const PRIMARY = "#000A63";
 const BORDER = "#E5E7EB";
 const MUTED = "#6B7280";
@@ -156,6 +157,43 @@ export default function EditProfileScreen() {
             {saving ? "Saving..." : "Save Changes"}
           </Text>
         </TouchableOpacity>
+        {/* 🧠 Admin-only buttons */}
+        {user?.role === "ADMIN" && (
+          <>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("AdminKycDashboard")}
+              style={{
+                backgroundColor: "#111827",
+                paddingVertical: 14,
+                borderRadius: 10,
+                alignItems: "center",
+                marginTop: 15,
+              }}
+            >
+              <Text style={{ color: "#fff", fontWeight: "600" }}>
+                Go to KYC Dashboard
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                padding: 14,
+                backgroundColor: "#000A63",
+                borderRadius: 10,
+                marginTop: 20,
+                alignItems: "center",
+              }}
+              onPress={() => navigation.navigate("AdminDashboard")}
+            >
+              <Text
+                style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}
+              >
+                Go to Admin Dashboard
+              </Text>
+            </TouchableOpacity>
+          </>
+          
+        )}
       </ScrollView>
     </SafeAreaView>
   );

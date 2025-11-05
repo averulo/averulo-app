@@ -1,6 +1,6 @@
-import { sendOtp } from '@/lib/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import axios from "axios";
 import { useState } from 'react';
 import {
   Image,
@@ -24,12 +24,21 @@ export default function LoginScreen() {
   const isValidEmail = (v) => /\S+@\S+\.\S+/.test(v);
 
   const handleContinue = async () => {
-    try {
-      await sendOtp(email);
-      // if (resp.devOtp) alert(`Dev OTP: ${resp.devOtp}`);
-      navigation.navigate('OtpScreen', { email });
-    } catch (e) {
-      alert(e?.message || 'Failed to send OTP');
+  if (!email.trim()) return alert("Please enter an email");
+
+  try {
+    const res = await axios.post("http://192.168.100.6:4000/api/send-otp", { email });
+
+    if (res.data.success) {
+      console.log("✅ OTP sent successfully:", res.data);
+      console.log("Navigation object:", navigation);
+      navigation.navigate("OtpScreen", { email });
+    } else {
+      alert("Failed to send OTP: " + (res.data.message || "Unknown error"));
+    }
+    } catch (err) {
+      console.error("❌ Error sending OTP:", err.message);
+      alert("Network or server error: " + err.message);
     }
   };
 

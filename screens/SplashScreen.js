@@ -18,7 +18,7 @@ const SplashScreen = ({ navigation }) => {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      navigation.replace('Welcome'); // 👈 Go to your Welcome screen
+      navigation.replace('Login'); // 👈 Go to your Welcome screen
     });
   }, []);
 

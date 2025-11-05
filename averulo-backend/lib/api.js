@@ -70,3 +70,12 @@ export async function uploadKyc(token, idType, frontImage, backImage) {
   });
   return j(res);
 }
+
+export async function getAdminTrends(token) {
+  const res = await fetch(`${API_BASE}/api/admin/analytics/trends`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || "Failed to fetch trends");
+  return data.trends;
+}

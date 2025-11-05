@@ -1,9 +1,11 @@
 import axios from "axios";
+import Constants from "expo-constants";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { playNotificationSound } from "../utils/sound";
 import { useAuth } from "./useAuth";
 
 const NotificationsContext = createContext();
+const API_BASE = Constants.expoConfig?.extra?.apiUrl || "http://192.168.100.6:4000";
 
 export const NotificationsProvider = ({ children }) => {
   const { token } = useAuth();
@@ -15,7 +17,8 @@ export const NotificationsProvider = ({ children }) => {
   async function fetchNotifications() {
     if (!token) return;
     try {
-      const res = await axios.get("http://localhost:4000/api/notifications", {
+      console.log("🔗 Fetching notifications from:", API_BASE);
+      const res = await axios.get(`${API_BASE}/api/notifications`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -25,7 +28,7 @@ export const NotificationsProvider = ({ children }) => {
       const unread = items.filter((n) => !n.readAt).length;
       setUnreadCount(unread);
     } catch (err) {
-      console.log("Error fetching notifications:", err.message);
+      console.log("❌ Error fetching notifications:", err.message);
     }
   }
 
@@ -48,12 +51,14 @@ export const NotificationsProvider = ({ children }) => {
   // ✅ Mark all notifications as read
   async function markAllRead() {
     if (!token) return;
-    await axios.patch(
-      "http://localhost:4000/api/notifications/read-all",
-      {},
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    fetchNotifications();
+    try {
+      await axios.patch(`${API_BASE}/api/notifications/read-all`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      fetchNotifications();
+    } catch (err) {
+      console.log("❌ Error marking notifications read:", err.message);
+    }
   }
 
   return (
@@ -65,5 +70,4 @@ export const NotificationsProvider = ({ children }) => {
   );
 };
 
-// Hook for components to use notifications
 export const useNotifications = () => useContext(NotificationsContext);

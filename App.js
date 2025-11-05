@@ -7,6 +7,8 @@ import MainTabs from './navigation/MainTabs';
 
 // Screens
 import AddPhoneScreen from './screens/AddPhoneScreen';
+import AdminDashboardScreen from './screens/AdminDashboardScreen';
+import AdminKycDashboardScreen from "./screens/AdminKycDashboardScreen";
 import EditProfileScreen from './screens/EditProfileScreen';
 import InputNINScreen from './screens/InputNINScreen';
 import LoginScreen from './screens/LoginScreen';
@@ -18,7 +20,6 @@ import SplashScreen from './screens/SplashScreen';
 import TakePhotoOfIDScreen from './screens/TakePhotoOfIDScreen';
 import TakePhotoOfPassportScreen from './screens/TakePhotoOfPassportScreen';
 import UserVerificationScreen from './screens/UserVerificationScreen';
-import WelcomeScreen from './screens/WelcomeScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -29,7 +30,6 @@ export default function App() {
         <NavigationContainer>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Splash" component={SplashScreen} />
-            <Stack.Screen name="Welcome" component={WelcomeScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="SignUp" component={SignUpScreen} />
             <Stack.Screen name="OtpScreen" component={OtpScreen} />
@@ -48,6 +48,16 @@ export default function App() {
             <Stack.Screen name="InputNIN" component={InputNINScreen} />
             <Stack.Screen name="AddPhoneScreen" component={AddPhoneScreen} />
             <Stack.Screen name="EditProfileScreen" component={EditProfileScreen} />
+            <Stack.Screen
+              name="AdminKycDashboard"
+              component={AdminKycDashboardScreen}
+              options={{ title: "KYC Dashboard", headerShown: true }}
+            />
+            <Stack.Screen
+            name="AdminDashboard"
+            component={AdminDashboardScreen}
+            options={{ title: "Admin Dashboard", headerShown: true }}
+          />
           </Stack.Navigator>
         </NavigationContainer>
       </NotificationsProvider>
