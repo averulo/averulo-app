@@ -23,20 +23,35 @@ enum PropStatus {
 
 enum BookingStatus {
   PENDING
+  APPROVED
   PAID
   CANCELLED
   REFUNDED
 }
 
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum NotificationType {
+  BOOKING_STATUS
+  PAYMENT_UPDATE
+  SYSTEM_ALERT
+}
+
 model User {
-  id         String     @id @default(cuid())
-  email      String     @unique
-  password   String
-  role       Role       @default(GUEST)
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  properties Property[]
-  bookings   Booking[]
+  id            String         @id @default(cuid())
+  email         String         @unique
+  password      String
+  role          Role           @default(GUEST)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  properties    Property[]
+  bookings      Booking[]
+  payments      Payment[]
+  notifications Notification[]
 }
 
 model Property {
@@ -61,21 +76,64 @@ model Property {
 }
 
 model Booking {
-  id          String        @id @default(cuid())
-  property    Property      @relation(fields: [propertyId], references: [id])
-  propertyId  String
-  guest       User          @relation(fields: [guestId], references: [id])
-  guestId     String
-  checkIn     DateTime
-  checkOut    DateTime
-  amount      Int
-  currency    String        @default("NGN")
-  status      BookingStatus @default(PENDING)
-  paystackRef String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id            String         @id @default(cuid())
+  property      Property       @relation(fields: [propertyId], references: [id])
+  propertyId    String
+  guest         User           @relation(fields: [guestId], references: [id])
+  guestId       String
+  checkIn       DateTime
+  checkOut      DateTime
+  amount        Int
+  currency      String         @default("NGN")
+  status        BookingStatus  @default(PENDING)
+  paymentStatus PaymentStatus  @default(PENDING)
+  paystackRef   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  payments      Payment[]
+  notifications Notification[]
 
   @@index([guestId])
   @@index([propertyId])
   @@index([status])
+  @@index([checkIn])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  booking         Booking       @relation(fields: [bookingId], references: [id])
+  bookingId       String
+  user            User          @relation(fields: [userId], references: [id])
+  userId          String
+  amount          Int
+  currency        String        @default("NGN")
+  status          PaymentStatus @default(PENDING)
+  paymentReference String       @unique
+  paystackRef     String?
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([bookingId])
+  @@index([status])
+  @@index([paymentReference])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  user      User             @relation(fields: [userId], references: [id])
+  userId    String
+  booking   Booking?         @relation(fields: [bookingId], references: [id])
+  bookingId String?
+  type      NotificationType
+  title     String
+  body      String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@unique([bookingId, type])
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
 }

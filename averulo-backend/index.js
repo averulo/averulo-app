@@ -9,6 +9,8 @@ const rateLimit = require('express-rate-limit');
 const authRoutes = require('./routes/auth');
 const propertyRoutes = require('./routes/properties');
 const bookingRoutes = require('./routes/bookings');
+const paymentRoutes = require('./routes/payments');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -113,6 +115,8 @@ app.post('/api/verify-otp', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/admin', adminRoutes);
 
 // ---------- Start ----------
 app.listen(PORT, '0.0.0.0', () => {
