@@ -156,7 +156,14 @@ app.post("/api/send-otp", otpLimiter, async (req, res) => {
         subject: "Your OTP Code",
         html: `<h3>Your OTP is: ${otp}</h3>`,
       });
-      return res.status(200).json({ success: true, message: "OTP sent!" });
+
+      // Include devOtp in development mode
+      const response = { success: true, message: "OTP sent!" };
+      if (isDev) {
+        response.devOtp = otp;
+        console.log('🧩 DEV MODE: OTP for', email, ':', otp);
+      }
+      return res.status(200).json(response);
     }
     throw new Error("SMTP not configured");
   } catch (err) {

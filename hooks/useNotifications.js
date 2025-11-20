@@ -1,11 +1,12 @@
 import axios from "axios";
-import Constants from "expo-constants";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { API_BASE } from "../lib/api";
 import { playNotificationSound } from "../utils/sound";
 import { useAuth } from "./useAuth";
 
+
 const NotificationsContext = createContext();
-const API_BASE = Constants.expoConfig?.extra?.apiUrl || "http://192.168.100.6:4000";
+
 
 export const NotificationsProvider = ({ children }) => {
   const { token } = useAuth();

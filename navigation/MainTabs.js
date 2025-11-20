@@ -1,83 +1,67 @@
-import { Ionicons } from '@expo/vector-icons';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import NotificationBell from '../components/NotificationBell';
-import EditProfileScreen from '../screens/EditProfileScreen';
-import ExploreHomeScreen from '../screens/ExploreHomeScreen';
+// navigation/MainTabs.js
+import { Ionicons } from "@expo/vector-icons";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+
+import HomeScreen from "../screens/HomeScreen";
 import MyBookingsScreen from "../screens/MyBookingsScreen";
-import NotificationsScreen from '../screens/NotificationsScreen';
-import SavedScreen from '../screens/SavedScreen';
+import NotificationsScreen from "../screens/NotificationsScreen"; // temporary Chat screen
+import PropertiesListScreen from "../screens/PropertiesListScreen"; // ✅ Explore
 
 const Tab = createBottomTabNavigator();
 
-export default function MainTabs({ navigation }) {
+export default function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
-        headerShown: true,
-        tabBarActiveTintColor: '#000A63',
-        tabBarInactiveTintColor: '#999',
+        headerShown: false,
+        tabBarActiveTintColor: "#000A63",
+        tabBarInactiveTintColor: "#9CA3AF",
       }}
     >
-      {/* 🏠 Explore / Home */}
+      {/* 🏠 Home */}
       <Tab.Screen
-        name="Home"
-        component={ExploreHomeScreen}
+        name="HomeTab"
+        component={HomeScreen}
         options={{
-          title: 'Explore',
-          headerRight: () => (
-            <NotificationBell
-              onPress={() => navigation.navigate('Notifications')}
-            />
-          ),
+          title: "Home",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size} color={color} />
           ),
         }}
       />
 
-      {/* ❤️ Saved */}
+      {/* 🔍 Explore */}
       <Tab.Screen
-        name="Saved"
-        component={SavedScreen}
+        name="ExploreTab"
+        component={PropertiesListScreen}  // ← FIXED
         options={{
-          title: 'Saved',
+          title: "Explore",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="heart-outline" size={size} color={color} />
+            <Ionicons name="compass-outline" size={size} color={color} />
           ),
         }}
       />
 
-      {/* 👤 Profile */}
+      {/* 📅 Booking */}
       <Tab.Screen
-        name="Profile"
-        component={EditProfileScreen}
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
-          ),
-        }}
-      />
-
-      {/* 🔔 Notifications */}
-      <Tab.Screen
-        name="Notifications"
-        component={NotificationsScreen}
-        options={{
-          title: 'Notifications',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="notifications-outline" size={size} color={color} />
-          ),
-        }}
-      />
-
-      <Tab.Screen
-        name="MyBookings"
+        name="BookingTab"
         component={MyBookingsScreen}
         options={{
-          title: "My Bookings",
+          title: "Booking",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size} color={color} />
+          ),
+        }}
+      />
+
+      {/* 💬 Chat */}
+      <Tab.Screen
+        name="ChatTab"
+        component={NotificationsScreen} // temporary until Chat is built
+        options={{
+          title: "Chat",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubble-ellipses-outline" size={size} color={color} />
           ),
         }}
       />

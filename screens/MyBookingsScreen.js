@@ -1,303 +1,419 @@
 // screens/MyBookingsScreen.js
-import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import axios from "axios";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useAuth } from "../hooks/useAuth";
-import { API_BASE } from "../lib/api";
+
+const PRIMARY = "#000A63";
+const MUTED = "#6B7280";
+const SCREEN_WIDTH = Dimensions.get("window").width;
 
 export default function MyBookingsScreen() {
-  const { token } = useAuth();
   const navigation = useNavigation();
+  const route = useRoute();
+  const { user, token } = useAuth();
 
-  const [bookings, setBookings] = useState([]);
-  const [activeFilter, setActiveFilter] = useState("All");
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
+  const { property } = route.params || {};
+  if (!property) {
+    return (
+      <View style={styles.center}>
+        <Text>No property selected.</Text>
+      </View>
+    );
+  }
 
-  const BASE = API_BASE || "http://192.168.100.6:4000";
+  const basePrice = property.price || 0;
 
-  // ✅ Fetch bookings + analytics
-  const fetchBookings = async () => {
-    if (!token) return;
-    setLoading(true);
-    setError(null);
+  const [name, setName] = useState(user?.name || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [phone, setPhone] = useState("");
+  const [requests, setRequests] = useState("");
+
+  const [extras, setExtras] = useState({
+    earlyCheckIn: false,
+    lateCheckout: false,
+    airportPickup: false,
+    valetParking: false,
+    rides: false,
+    birthday: false,
+    flowers: false,
+    customCall: false,
+    wheelchairRoom: false,
+    grabBars: false,
+  });
+
+  const [total, setTotal] = useState(basePrice);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const extraCost =
+      (extras.earlyCheckIn ? 15000 : 0) +
+      (extras.lateCheckout ? 15000 : 0) +
+      (extras.airportPickup ? 20000 : 0) +
+      (extras.valetParking ? 10000 : 0) +
+      (extras.rides ? 8000 : 0) +
+      (extras.birthday ? 12000 : 0) +
+      (extras.flowers ? 10000 : 0) +
+      (extras.customCall ? 5000 : 0);
+
+    setTotal(basePrice + extraCost);
+  }, [extras, basePrice]);
+
+  const toggleChip = (key) => {
+    setExtras((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleBookNow = async () => {
+    if (!name || !email || !phone) {
+      alert("Fill name, email & phone.");
+      return;
+    }
 
     try {
-      const [bRes, aRes] = await Promise.all([
-        axios.get(`${BASE}/api/bookings/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        axios.get(`${BASE}/api/bookings/analytics`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      ]);
+      setLoading(true);
+      const res = await axios.post(
+        "http://192.168.100.6:4000/api/bookings",
+        {
+          propertyId: property.id,
+          name,
+          email,
+          phone,
+          requests,
+          extras,
+          total,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-      setBookings(bRes.data || []);
-      setSummary(aRes.data?.summary || null);
-    } catch (err) {
-      console.log("Error loading bookings:", err?.message || err);
-      setError("Failed to load bookings. Please try again.");
+      if (res.data.success) {
+        navigation.navigate("BookingSuccess", { booking: res.data.booking });
+      } else {
+        alert(res.data.message || "Booking failed");
+      }
+    } catch {
+      alert("Unable to book");
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    fetchBookings();
-  }, [token]);
+  const descriptionText =
+    property.description ||
+    "Hotel with free parking, well-lit rooms and recreation park nearby.";
 
-  // ✅ Filters
-  const filters = ["All", "Pending", "Approved", "Rejected", "Cancelled"];
-
-  const filtered = useMemo(() => {
-    if (activeFilter === "All") return bookings;
-    const want = activeFilter.toUpperCase();
-    return bookings.filter((b) => b.status === want);
-  }, [bookings, activeFilter]);
-
-  // ✅ Refresh control
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchBookings();
-  };
-
-  // ✅ Dummy fallback (optional)
-  const dummyData = [
-    {
-      id: "b1",
-      property: { title: "Banana Island Villa", city: "Lagos", nightlyPrice: 150000 },
-      startDate: "2025-10-15",
-      endDate: "2025-10-17",
-      status: "APPROVED",
-    },
-    {
-      id: "b2",
-      property: { title: "Eko Pearl Tower", city: "Victoria Island", nightlyPrice: 120000 },
-      startDate: "2025-11-01",
-      endDate: "2025-11-05",
-      status: "PENDING",
-    },
-    {
-      id: "b3",
-      property: { title: "Lekki Luxury Suite", city: "Lekki Phase 1", nightlyPrice: 95000 },
-      startDate: "2025-09-20",
-      endDate: "2025-09-22",
-      status: "REJECTED",
-    },
-  ];
-
-  const displayData = filtered.length === 0 && !loading ? dummyData : filtered;
-
-  // ✅ Early states
-  if (!token) {
-    return (
-      <View style={styles.center}>
-        <Text style={{ color: "#000A63", textAlign: "center", fontWeight: "600" }}>
-          Please sign in to view your bookings.
-        </Text>
-      </View>
-    );
-  }
-
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#000A63" />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.center}>
-        <Text style={{ color: "red" }}>{error}</Text>
-        <TouchableOpacity onPress={fetchBookings} style={styles.retryBtn}>
-          <Text style={styles.retryText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const heroImage =
+    property.images?.[0]?.url ||
+    "https://images.pexels.com/photos/271639/pexels-photo-271639.jpeg";
 
   return (
-    <View style={styles.container}>
-      {/* Summary */}
-      {summary && (
-        <View style={styles.summaryBox}>
-          <Text style={styles.summaryText}>
-            Total Bookings: {summary.totalBookings} | Total Spent: ₦
-            {Number(summary.totalSpent || 0).toLocaleString()}
-          </Text>
-        </View>
-      )}
-
-      {/* Filters */}
-      <View style={styles.filterRow}>
-        {filters.map((status) => (
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={{ paddingBottom: 40 }}
+    >
+      {/* HERO IMAGE */}
+      <View style={styles.heroContainer}>
+        <Image source={{ uri: heroImage }} style={styles.heroImage} />
+        <View style={styles.heroOverlay}>
           <TouchableOpacity
-            key={status}
-            onPress={() => setActiveFilter(status)}
-            style={[
-              styles.filterBtn,
-              activeFilter === status && styles.filterActive,
-            ]}
+            onPress={() => navigation.goBack()}
+            style={styles.iconCircle}
           >
-            <Text
-              style={[
-                styles.filterText,
-                activeFilter === status && styles.filterTextActive,
-              ]}
-            >
-              {status}
-            </Text>
+            <Ionicons name="arrow-back" size={20} color="#111827" />
           </TouchableOpacity>
-        ))}
+
+          <TouchableOpacity style={styles.iconCircle}>
+            <Ionicons name="heart-outline" size={20} color="#111827" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Booking List */}
-      <FlatList
-        data={displayData}
-        keyExtractor={(item) => item.id}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={
-          <Text style={styles.empty}>No bookings found.</Text>
-        }
-        contentContainerStyle={{ paddingBottom: 16 }}
-        renderItem={({ item }) => {
-        const prop = item.property || {};
-        const statusStyle =
-            item.status === "APPROVED"
-            ? styles.approved
-            : item.status === "REJECTED"
-            ? styles.rejected
-            : item.status === "CANCELLED"
-            ? styles.cancelled
-            : styles.pending;
+      {/* CONTENT */}
+      <View style={styles.content}>
+        {/* Top summary */}
+        <Text style={styles.propertyTitle}>{property.title}</Text>
 
-        return (
-            <TouchableOpacity
-            onPress={() =>
-                navigation.navigate("PropertyDetailsScreen", { id: prop.id })
-            }
-            >
-            <View style={[styles.card, statusStyle]}>
-                <Text style={styles.title}>{prop.title ?? "Untitled stay"}</Text>
-                <Text style={styles.city}>{prop.city ?? "-"}</Text>
-                <Text style={styles.dates}>
-                {new Date(item.startDate).toLocaleDateString()} –{" "}
-                {new Date(item.endDate).toLocaleDateString()}
-                </Text>
-                {prop.nightlyPrice != null && (
-                <Text style={styles.price}>
-                    ₦{Number(prop.nightlyPrice).toLocaleString()}/night
-                </Text>
-                )}
-                <Text style={styles.status}>{item.status}</Text>
+        <View style={styles.priceRow}>
+          <Text style={styles.pricePrimary}>₦{basePrice.toLocaleString()}</Text>
 
-                {/* 👇 Add your View Receipt button right here */}
-                <TouchableOpacity
-                onPress={() =>
-                    navigation.navigate("BookingReceipt", { bookingId: item.id })
-                }
-                style={styles.receiptBtn}
-                >
-                <Text style={styles.receiptText}>View Receipt</Text>
-                </TouchableOpacity>
-            </View>
-            </TouchableOpacity>
-        );
-        }}
-      />
+          <View style={styles.ratingRow}>
+            <Ionicons name="star" size={14} color="#FBBF24" />
+            <Text style={styles.ratingText}>
+              {property.avgRating?.toFixed(1) || "4.5"}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.description}>{descriptionText}</Text>
+
+        {/* WHO IS THE GUEST */}
+        <Text style={styles.sectionTitle}>Who’s the guest?</Text>
+
+        <Text style={styles.fieldLabel}>Name</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="John Peter"
+          value={name}
+          onChangeText={setName}
+        />
+
+        <Text style={styles.fieldLabel}>Email</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="johnpeter200@gmail.com"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+
+        <Text style={styles.fieldLabel}>Phone Number</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="07012345678"
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+        />
+
+        {/* SPECIAL REQUESTS */}
+        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+          Make special requests
+        </Text>
+
+        {/* GROUPS EXACTLY LIKE FIGMA */}
+        {renderGroup("Check-in and Check-out", [
+          { key: "earlyCheckIn", label: "Early check-in" },
+          { key: "lateCheckout", label: "Late check-out" },
+        ])}
+
+        {renderGroup("Transportation and Parking", [
+          { key: "airportPickup", label: "Airport pick-up or drop-off" },
+          { key: "valetParking", label: "Valet parking" },
+          { key: "rides", label: "Rides" },
+        ])}
+
+        {renderGroup("Special Occasions", [
+          { key: "birthday", label: "Birthday" },
+          { key: "flowers", label: "Flowers in the room" },
+          { key: "customCall", label: "Customized call" },
+        ])}
+
+        {renderGroup("Accessibility Needs", [
+          { key: "wheelchairRoom", label: "Wheelchair-accessible room" },
+          { key: "grabBars", label: "Grab bars in the tub" },
+        ])}
+
+        {/* TEXTAREA */}
+        <TextInput
+          style={[styles.input, styles.textarea]}
+          placeholder="Add notes (e.g. room preference)"
+          multiline
+          value={requests}
+          onChangeText={setRequests}
+        />
+
+        {/* BOTTOM SUMMARY */}
+        <View style={styles.bottomSummary}>
+          <Text style={styles.bottomTitle}>{property.title}</Text>
+
+          <View style={styles.ratingRow}>
+            <Ionicons name="star" size={14} color="#FBBF24" />
+            <Text style={styles.ratingText}>
+              {property.avgRating?.toFixed(1) || "4.5"}
+            </Text>
+          </View>
+
+          <Text style={styles.bottomPrice}>
+            ₦{basePrice.toLocaleString()}
+          </Text>
+
+          <Text style={styles.description}>{descriptionText}</Text>
+        </View>
+
+        {/* TOTAL */}
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>Total</Text>
+          <Text style={styles.totalValue}>₦{total.toLocaleString()}</Text>
+        </View>
+
+        {/* BOOK NOW */}
+        <TouchableOpacity
+          style={[styles.bookBtn, loading && { opacity: 0.7 }]}
+          onPress={handleBookNow}
+          disabled={loading}
+        >
+          <Text style={styles.bookText}>
+            {loading ? "Processing..." : "BOOK NOW"}
+          </Text>
+        </TouchableOpacity>
       </View>
+    </ScrollView>
+  );
+
+  function renderGroup(title, items) {
+    return (
+      <>
+        <Text style={styles.groupLabel}>{title}</Text>
+        <View style={styles.chipWrap}>
+          {items.map((i) => (
+            <Chip
+              key={i.key}
+              label={i.label}
+              active={extras[i.key]}
+              onPress={() => toggleChip(i.key)}
+            />
+          ))}
+        </View>
+      </>
+    );
+  }
+}
+
+function Chip({ label, active, onPress }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.chip, active && { backgroundColor: PRIMARY }]}
+    >
+      <Text style={[styles.chipText, active && { color: "#fff" }]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#fff",
-  },
-  container: { flex: 1, backgroundColor: "#fff", padding: 16 },
-  summaryBox: {
-    backgroundColor: "#000A63",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  summaryText: { color: "#fff", fontWeight: "600", textAlign: "center" },
-  filterRow: {
+  container: { flex: 1, backgroundColor: "#fff" },
+
+  heroContainer: { width: SCREEN_WIDTH, height: 220 },
+  heroImage: { width: "100%", height: "100%" },
+  heroOverlay: {
+    position: "absolute",
+    top: 40,
+    left: 16,
+    right: 16,
     flexDirection: "row",
     justifyContent: "space-between",
+  },
+  iconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  content: { paddingHorizontal: 24, paddingTop: 20 },
+
+  propertyTitle: { fontSize: 20, fontWeight: "700", color: "#111827" },
+  priceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 6,
     marginBottom: 10,
-    flexWrap: "wrap",
+    alignItems: "center",
   },
-  filterBtn: {
-    borderWidth: 1,
-    borderColor: "#000A63",
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    marginVertical: 4,
+  pricePrimary: { fontSize: 20, fontWeight: "700", color: PRIMARY },
+
+  ratingRow: { flexDirection: "row", alignItems: "center" },
+  ratingText: { marginLeft: 4, fontSize: 13, color: MUTED },
+
+  description: {
+    fontSize: 13,
+    color: MUTED,
+    lineHeight: 18,
+    marginBottom: 16,
   },
-  filterActive: { backgroundColor: "#000A63" },
-  filterText: { color: "#000A63", fontSize: 13, fontWeight: "500" },
-  filterTextActive: { color: "#fff" },
-  card: {
+
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: PRIMARY,
+    marginBottom: 8,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    color: MUTED,
+    marginBottom: 4,
+  },
+  input: {
+    backgroundColor: "#F9FAFB",
     borderWidth: 1,
-    borderColor: "#ddd",
-    padding: 12,
+    borderColor: "#E5E7EB",
     borderRadius: 10,
-    marginBottom: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    marginBottom: 12,
   },
-  approved: { borderLeftColor: "green", borderLeftWidth: 4 },
-  pending: { borderLeftColor: "#EAB308", borderLeftWidth: 4 },
-  rejected: { borderLeftColor: "red", borderLeftWidth: 4 },
-  cancelled: { borderLeftColor: "#555", borderLeftWidth: 4 },
-  title: { fontSize: 16, fontWeight: "bold" },
-  city: { color: "#666" },
-  dates: { fontSize: 13, color: "#444" },
-  price: { marginTop: 4, fontWeight: "500" },
-  status: {
-    marginTop: 4,
-    textTransform: "capitalize",
-    fontWeight: "bold",
-    color: "#000A63",
+  textarea: {
+    height: 90,
+    textAlignVertical: "top",
+    marginTop: 8,
   },
-  empty: { textAlign: "center", marginTop: 30, color: "#666" },
-  retryBtn: {
-    marginTop: 10,
-    backgroundColor: "#000A63",
+
+  groupLabel: {
+    fontSize: 11,
+    color: MUTED,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+
+  chipWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 8,
+  },
+  chip: {
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 999,
+    backgroundColor: "#F3F4F6",
   },
-  retryText: { color: "#fff", fontWeight: "600" },
-  receiptBtn: {
-  marginTop: 8,
-  alignSelf: "flex-start",
-  backgroundColor: "#000A63",
-  paddingVertical: 6,
-  paddingHorizontal: 12,
-  borderRadius: 8,
-},
-receiptText: {
-  color: "#fff",
-  fontWeight: "600",
-  fontSize: 13,
-},
+  chipText: { fontSize: 13, color: "#111827" },
+
+  bottomSummary: { marginTop: 28 },
+  bottomTitle: { fontSize: 13, fontWeight: "600", color: "#111827" },
+  bottomPrice: {
+    marginTop: 4,
+    fontSize: 16,
+    fontWeight: "700",
+    color: PRIMARY,
+  },
+
+  totalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 24,
+    alignItems: "center",
+  },
+  totalLabel: { fontSize: 16, fontWeight: "600", color: "#111827" },
+  totalValue: { fontSize: 18, fontWeight: "700", color: PRIMARY },
+
+  bookBtn: {
+    backgroundColor: PRIMARY,
+    marginTop: 16,
+    borderRadius: 10,
+    paddingVertical: 16,
+    alignItems: "center",
+  },
+  bookText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
 });

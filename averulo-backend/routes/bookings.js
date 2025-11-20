@@ -22,6 +22,12 @@ const idParamSchema = z.object({
   id: z.string().min(1),
 });
 
+
+function generateBookingCode() {
+  return String(
+    Math.floor(100000000 + Math.random() * 900000000) // 9-digit code
+  );
+}
 /* ──────────────────────────────────────────────────────────────
    Quote (no auth required)
    ────────────────────────────────────────────────────────────── */
@@ -85,11 +91,15 @@ router.post("/", auth(true), validate(createBookingSchema), async (req, res) => 
 
     const created = await prisma.booking.create({
       data: {
+        bookingCode: generateBookingCode(),  // 👈 ADD THIS LINE
+
         property: { connect: { id: propertyId } },
         guest: { connect: { id: userId } },
+
         startDate: start,
         endDate: end,
         status: "PENDING",
+
         feesJson: breakdown,
         totalAmount: breakdown.total,
         amount: breakdown.total,
@@ -97,6 +107,7 @@ router.post("/", auth(true), validate(createBookingSchema), async (req, res) => 
       },
       select: {
         id: true,
+        bookingCode: true,
         startDate: true,
         endDate: true,
         status: true,

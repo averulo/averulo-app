@@ -29,7 +29,19 @@ exports.sendOTP = async (req, res) => {
       html: `<p>Your OTP is: <strong>${otp}</strong>. It will expire in 10 minutes.</p>`,
     });
 
-    res.status(200).json({ message: 'OTP sent' });
+    // Return response with devOtp in development mode
+    const response = {
+      success: true,
+      message: 'OTP sent!'
+    };
+
+    // Include OTP in response for development/testing
+    if (process.env.NODE_ENV !== 'production' || process.env.APP_ENV === 'development') {
+      response.devOtp = otp;
+      console.log('🧩 DEV MODE: Generated OTP for', email, ':', otp);
+    }
+
+    res.status(200).json(response);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to send OTP' });

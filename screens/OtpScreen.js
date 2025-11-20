@@ -1,3 +1,4 @@
+// screens/OtpScreen.js
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import axios from 'axios';
@@ -13,27 +14,53 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { useAuth } from '../hooks/useAuth';
+
+// Design colors
+const PRIMARY_DARK = "#04123C";
+const TEXT_DARK = "#1F2937";
+const TEXT_MEDIUM = "#6B7280";
+const BG_INPUT = "#F3F4F6";
 
 export default function OtpScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { signIn } = useAuth();
 
-  const email = (route.params && route.params.email) || 'guest@example.com';
+  // ✅ Ensure email exists
+  const { email, devOtp } = route.params || {};
+  if (!email) {
+    alert("Missing email — please go back and try again.");
+    return null;
+  }
 
   const [code, setCode] = useState(['', '', '', '', '', '']);
-  const [timer, setTimer] = useState(600);
+  const [timer, setTimer] = useState(120);
+  const [busy, setBusy] = useState(false);
   const inputRefs = useRef([]);
 
+  // Mask email function
+  const maskEmail = (email) => {
+    const [name, domain] = email.split('@');
+    if (name.length <= 2) return email;
+    const maskedName = name[0] + name[1] + '*****';
+    return `${maskedName}@${domain}`;
+  };
+
+  // Countdown timer
   useEffect(() => {
-    setCode(['', '', '', '', '', '']);
-    setTimer(120);
     const t = setInterval(() => setTimer((p) => (p > 0 ? p - 1 : 0)), 1000);
     return () => clearInterval(t);
   }, []);
 
+  // 🧩 Auto-fill dev OTP in development
+useEffect(() => {
+  if (devOtp && __DEV__) {
+    const arr = devOtp.split("").slice(0, 6);
+    setCode(arr);
+    console.log("🧩 Auto-filled dev OTP:", arr.join(""));
+  }
+}, [devOtp]);
   const allFilled = code.every((d) => d.length === 1);
 
   const handleChange = (text, index) => {
@@ -42,53 +69,55 @@ export default function OtpScreen() {
       next[index] = text;
       setCode(next);
       if (text.length === 1 && index < 5) {
-        inputRefs.current[index + 1] && inputRefs.current[index + 1].focus();
+        inputRefs.current[index + 1]?.focus();
       }
     }
   };
 
   const handleKeyPress = (e, index) => {
     if (e.nativeEvent.key === 'Backspace' && code[index] === '' && index > 0) {
-      inputRefs.current[index - 1] && inputRefs.current[index - 1].focus();
+      inputRefs.current[index - 1]?.focus();
     }
   };
 
+  // ✅ Prevent duplicate submissions
   const handleContinue = async () => {
-  try {
-    const otp = code.join('');
+    if (busy) return;
+    setBusy(true);
+    try {
+      const otp = code.join('');
+      console.log("🔍 Verifying OTP with:", { email, otp });
 
-    const res = await axios.post("http://192.168.100.6:4000/api/verify-otp", {
-      email,
-      otp,
-    });
-
-    const { user, token } = res.data;
-
-    // ✅ Save token + load user into AuthContext
-    await signIn(token);
-
-    // ✅ Navigate based on KYC status
-    if (user.kycStatus === 'VERIFIED') {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'MainTabs' }],
+      const res = await axios.post("http://192.168.100.6:4000/api/verify-otp", {
+        email,
+        otp,
       });
-    } else {
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: 'UserVerification',
-            params: { email: user.email },
-          },
-        ],
-      });
+
+      console.log("✅ Verification response:", res.data);
+      const { user, token } = res.data;
+
+      // ✅ Save token and load user into AuthContext
+      await signIn(token);
+
+      // ✅ Route based on KYC status
+      if (user.kycStatus === 'VERIFIED') {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainTabs' }],
+        });
+      } else {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'UserVerification', params: { email: user.email } }],
+        });
+      }
+    } catch (err) {
+      console.error("❌ Verify OTP error:", err.response?.data || err.message);
+      alert(err.response?.data?.message || "Invalid or expired OTP. Please try again.");
+    } finally {
+      setBusy(false);
     }
-  } catch (err) {
-    console.error(err);
-    alert('Failed to verify OTP');
-  }
-};
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -96,26 +125,28 @@ export default function OtpScreen() {
         style={styles.flexContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Back button */}
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backArrow}>
             <Ionicons name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>
 
           <View style={styles.centerContent}>
             <Text style={styles.title}>OTP Confirmation</Text>
-            <View style={{ marginBottom: 16 }} />
             <Text style={styles.subText}>A 6 digit code has been sent to your email</Text>
-            <View style={{ marginBottom: 16 }} />
+
             <Text style={styles.emailText}>
-              Enter code sent to <Text style={styles.emailBold}>{email}</Text>
+              Enter code sent to <Text style={styles.emailBold}>{maskEmail(email)}</Text>
             </Text>
+
             <Text style={styles.noteText}>
-              Don’t have access to this email?{' '}
-              <Text style={styles.link}>Use a different address</Text>
+              Don't have access to this Number. <Text style={styles.link}>Use a different Email address</Text>
             </Text>
 
-            <View style={{ marginBottom: 16 }} />
-
+            {/* OTP Inputs */}
             <View style={styles.codeInputWrapper}>
               {code.map((digit, index) => (
                 <TextInput
@@ -133,17 +164,20 @@ export default function OtpScreen() {
             </View>
 
             <Text style={styles.timerText}>
-              You can request a code in <Text style={{ fontWeight: 'bold' }}>{timer} secs</Text>
+              You can request a code in <Text style={styles.timerBold}>{timer} secs</Text>
             </Text>
           </View>
         </ScrollView>
 
+        {/* Continue Button */}
         <TouchableOpacity
-          style={[styles.continueBtn, !allFilled && { opacity: 0.5 }]}
+          style={[styles.continueBtn, (!allFilled || busy) && { opacity: 0.5 }]}
           onPress={handleContinue}
-          disabled={!allFilled}
+          disabled={!allFilled || busy}
         >
-          <Text style={styles.continueText}>Continue</Text>
+          <Text style={styles.continueText}>
+            {busy ? "Verifying..." : "Continue"}
+          </Text>
         </TouchableOpacity>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -151,42 +185,107 @@ export default function OtpScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: 'white' },
-  flexContainer: { flex: 1 },
-  scrollContent: { paddingHorizontal: 24, paddingTop: 20, flexGrow: 1 },
-  centerContent: { justifyContent: 'center' },
-  backArrow: { marginBottom: 12 },
-  title: { fontSize: 26, fontWeight: 'bold', marginBottom: 0, textAlign: 'left' },
-  subText: { fontSize: 16, color: '#333' },
-  emailText: { fontSize: 16, marginBottom: 4 },
-  emailBold: { fontWeight: 'bold' },
-  noteText: { fontSize: 14, color: '#333', marginBottom: 24 },
-  link: { color: '#000A63', textDecorationLine: 'underline' },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFFFFF'
+  },
+  flexContainer: {
+    flex: 1
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    flexGrow: 1
+  },
+  centerContent: {
+    justifyContent: 'center'
+  },
+  backArrow: {
+    marginBottom: 24
+  },
+  title: {
+    fontFamily: 'System',
+    fontSize: 28,
+    fontWeight: '600',
+    color: TEXT_DARK,
+    textAlign: 'left',
+    marginBottom: 12
+  },
+  subText: {
+    fontFamily: 'System',
+    fontSize: 16,
+    color: TEXT_DARK,
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  emailText: {
+    fontFamily: 'System',
+    fontSize: 16,
+    color: TEXT_DARK,
+    marginBottom: 8,
+    lineHeight: 22,
+  },
+  emailBold: {
+    fontWeight: '600',
+    color: TEXT_DARK,
+  },
+  noteText: {
+    fontFamily: 'System',
+    fontSize: 14,
+    color: TEXT_MEDIUM,
+    marginBottom: 32,
+    lineHeight: 20,
+  },
+  link: {
+    color: TEXT_DARK,
+    fontWeight: '600',
+  },
   codeInputWrapper: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 24,
-    marginTop: 8,
+    marginTop: 16,
+    gap: 8,
   },
   codeInput: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    width: 48,
-    height: 48,
+    borderWidth: 0,
+    borderBottomWidth: 2,
+    borderBottomColor: '#D1D5DB',
+    flex: 1,
+    height: 56,
     textAlign: 'center',
-    fontSize: 20,
-    borderRadius: 6,
-    backgroundColor: '#f0f0f0',
+    fontSize: 24,
+    fontWeight: '600',
+    color: TEXT_DARK,
+    backgroundColor: 'transparent',
   },
-  timerText: { fontSize: 14, textAlign: 'center', color: '#333', marginBottom: 32 },
+  timerText: {
+    fontFamily: 'System',
+    fontSize: 14,
+    textAlign: 'center',
+    color: TEXT_MEDIUM,
+    marginBottom: 32,
+    lineHeight: 20,
+  },
+  timerBold: {
+    fontWeight: '700',
+    color: TEXT_DARK,
+  },
   continueBtn: {
-    backgroundColor: '#000A63',
-    paddingVertical: 16,
+    backgroundColor: PRIMARY_DARK,
+    paddingVertical: 18,
     paddingHorizontal: 24,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
     marginHorizontal: 24,
-    marginBottom: 24,
+    marginBottom: 32,
+    height: 56,
+    justifyContent: 'center',
   },
-  continueText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  continueText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+    fontFamily: 'System',
+  },
 });

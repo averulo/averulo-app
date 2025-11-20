@@ -15,8 +15,21 @@ import {
 
 const { width } = Dimensions.get('window');
 
+// Design colors from Figma
+const PRIMARY_DARK = "#04123C";     // 50% purple Primary
+const TEXT_DARK = "#012232";        // 80% Gray
+const TEXT_GRAY = "#0F3040";        // 70% Gray
+const TEXT_MEDIUM_GRAY = "#294452"; // 60% Gray
+const TEXT_MEDIUM = "#3E5663";      // 50% Gray
+const TEXT_LIGHT = "#5F737D";       // 40% Gray
+const BG_BLUE = "#EDF4F7";          // 1% blue
+const BG_WHITE = "#FCFEFE";         // 10% Gray
+const BG_GRAY = "#F1F3F4";          // 15% Gray
+const BORDER_GRAY = "#D4DADC";      // 20% Gray
+const ERROR_RED = "#FC6868";        // Error/accent color
+
 const idTypes = [
-  { label: 'National Driver Licence', value: 'drivers-license' },
+  { label: 'National Drivers Licence', value: 'drivers-license' },
   { label: 'Passport', value: 'passport' },
   { label: 'National Identification Number', value: 'national-id' },
 ];
@@ -41,10 +54,11 @@ export default function UserVerificationScreen({ navigation }) {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#000A63" />
+            <Ionicons name="arrow-back" size={24} color={TEXT_GRAY} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Verify</Text>
           <TouchableOpacity
+            style={styles.skipBtn}
             onPress={() => navigation.reset({
               index: 0,
               routes: [{ name: 'MainTabs' }],
@@ -58,16 +72,18 @@ export default function UserVerificationScreen({ navigation }) {
         <Text style={styles.title}>Users Verification</Text>
 
         {/* ID Selection */}
-        <Text style={styles.label}>Please select your preferred ID</Text>
-        <TouchableOpacity
-          style={styles.dropdown}
-          onPress={() => setModalVisible(true)}
-        >
-          <Text style={styles.dropdownText}>
-            {selectedIdType.label}
-          </Text>
-          <Ionicons name="chevron-down" size={20} color="#000" />
-        </TouchableOpacity>
+        <View style={styles.idSelectionContainer}>
+          <Text style={styles.label}>Please select your preferred ID</Text>
+          <TouchableOpacity
+            style={styles.dropdown}
+            onPress={() => setModalVisible(true)}
+          >
+            <Text style={styles.dropdownText}>
+              {selectedIdType.label}
+            </Text>
+            <Ionicons name="chevron-down" size={24} color={TEXT_LIGHT} />
+          </TouchableOpacity>
+        </View>
 
         {/* Custom Modal */}
         <Modal visible={modalVisible} transparent animationType="slide">
@@ -94,32 +110,65 @@ export default function UserVerificationScreen({ navigation }) {
           </View>
         </Modal>
 
-        {/* ID Illustration */}
-        <View style={styles.imageWrapper}>
-          <Image
-            source={require('../assets/images/id-card-illustration.png')}
-            resizeMode="contain"
-            style={styles.illustration}
-          />
+        {/* Get your ID card ready - Card */}
+        <View style={styles.idReadyCard}>
+          {/* Title & Subtitle */}
+          <View style={styles.idReadyHeader}>
+            <Text style={styles.guideTitle}>Get your ID card ready</Text>
+            <Text style={styles.guideSub}>You'll capture the front and back of the ID</Text>
+          </View>
+
+          {/* ID Illustration */}
+          <View style={styles.idIllustrationWrapper}>
+            <Image
+              source={require('../assets/images/id-card-illustration.png')}
+              resizeMode="contain"
+              style={styles.illustration}
+            />
+          </View>
         </View>
 
-        {/* Guideline Text */}
-        <Text style={styles.guideTitle}>Get your ID card ready</Text>
-        <Text style={styles.guideSub}>You’ll capture the front and back of the ID</Text>
+        {/* No Crop, No Blur, No Glare */}
+        <View style={styles.guidelinesContainer}>
+          <View style={styles.guidelineItem}>
+            <View style={styles.guidelineIconWrapper}>
+              <Image
+                source={require('../assets/images/guidelines.png')}
+                resizeMode="contain"
+                style={styles.guidelineIcon}
+              />
+            </View>
+            <Text style={styles.guidelineLabel}>No Crop</Text>
+          </View>
+          <View style={styles.guidelineItem}>
+            <View style={styles.guidelineIconWrapper}>
+              <Image
+                source={require('../assets/images/guidelines.png')}
+                resizeMode="contain"
+                style={styles.guidelineIcon}
+              />
+            </View>
+            <Text style={styles.guidelineLabel}>No Blur</Text>
+          </View>
+          <View style={styles.guidelineItem}>
+            <View style={styles.guidelineIconWrapper}>
+              <Image
+                source={require('../assets/images/guidelines.png')}
+                resizeMode="contain"
+                style={styles.guidelineIcon}
+              />
+            </View>
+            <Text style={styles.guidelineLabel}>No Glare</Text>
+          </View>
+        </View>
 
-        {/* Guideline Image */}
-        <Image
-          source={require('../assets/images/guidelines.png')}
-          resizeMode="contain"
-          style={styles.guidelineImage}
-        />
-        <Text style={styles.noGlareText}>No Crop, No Blur, No Glare</Text>
-
-        {/* Avoid Card */}
-        <View style={styles.avoidCard}>
+        {/* Avoid Section */}
+        <View style={styles.avoidSection}>
           <Text style={styles.avoidTitle}>Please avoid using</Text>
-          <Text style={styles.avoidItem}>• Expired ID</Text>
-          <Text style={styles.avoidItem}>• Photocopied or printed ID</Text>
+          <View style={styles.avoidList}>
+            <Text style={styles.avoidItem}>Expired ID</Text>
+            <Text style={styles.avoidItem}>Photocopied or printed ID</Text>
+          </View>
         </View>
 
         {/* Continue */}
@@ -132,116 +181,196 @@ export default function UserVerificationScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#fff' },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFFFFF'
+  },
   scrollContent: {
-    padding: 24,
+    paddingHorizontal: 16,
+    paddingTop: 20,
     paddingBottom: 40,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    height: 32,
+    marginBottom: 24,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#000A63',
+    fontFamily: 'Manrope',
+    fontWeight: '500',
+    fontSize: 12,
+    lineHeight: 16,
+    color: TEXT_LIGHT,
+  },
+  skipBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 8,
   },
   skip: {
-    fontSize: 16,
-    color: '#000A63',
+    fontFamily: 'Manrope',
     fontWeight: '500',
+    fontSize: 14,
+    lineHeight: 16,
+    color: TEXT_DARK,
   },
   title: {
+    fontFamily: 'Manrope',
+    fontWeight: '400',
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000A63',
-    marginBottom: 20,
-    textAlign: 'center',
+    lineHeight: 24,
+    color: TEXT_MEDIUM,
+    marginBottom: 36,
+  },
+  idSelectionContainer: {
+    gap: 4,
+    marginBottom: 24,
   },
   label: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 6,
+    fontFamily: 'Manrope',
+    fontWeight: '400',
+    fontSize: 14,
+    lineHeight: 16,
+    color: TEXT_MEDIUM,
   },
   dropdown: {
     borderWidth: 1,
-    borderColor: '#A5B4FC',
+    borderColor: TEXT_GRAY,
     borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    height: 48,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 28,
   },
   dropdownText: {
-    fontSize: 15,
-    color: '#111',
+    fontFamily: 'Manrope',
+    fontWeight: '400',
+    fontSize: 14,
+    lineHeight: 16,
+    color: '#000000',
   },
-  imageWrapper: {
+  idReadyCard: {
+    borderWidth: 1,
+    borderColor: BORDER_GRAY,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
     alignItems: 'center',
-    marginBottom: 12,
+    gap: 16,
+    marginBottom: 16,
   },
-  illustration: {
-    width: width * 0.65,
-    height: width * 0.35,
+  idReadyHeader: {
+    width: '100%',
+    paddingHorizontal: 0,
+    gap: 0,
   },
   guideTitle: {
-    fontSize: 18,
-    color: '#000A63',
-    fontWeight: 'bold',
+    fontFamily: 'Manrope',
+    fontWeight: '500',
+    fontSize: 20,
+    lineHeight: 32,
     textAlign: 'center',
+    letterSpacing: -0.05 * 20,
+    color: TEXT_DARK,
   },
   guideSub: {
+    fontFamily: 'Manrope',
+    fontWeight: '300',
     fontSize: 14,
+    lineHeight: 16,
     textAlign: 'center',
-    color: '#555',
-    marginBottom: 12,
+    color: TEXT_MEDIUM_GRAY,
   },
-  guidelineImage: {
-    width: width * 0.85,
-    height: width * 0.18,
-    alignSelf: 'center',
-    marginBottom: 8,
-  },
-  noGlareText: {
-    fontSize: 14,
-    textAlign: 'center',
-    color: '#000A63',
-    fontWeight: '600',
-    marginBottom: 20,
-  },
-  avoidCard: {
-    backgroundColor: '#F5F8FF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: '#E0E7FF',
-  },
-  avoidTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#b38a00',
-    marginBottom: 8,
-  },
-  avoidItem: {
-    fontSize: 15,
-    color: '#b38a00',
-    marginBottom: 4,
-  },
-  continueBtn: {
-    backgroundColor: '#000A63',
-    paddingVertical: 16,
-    borderRadius: 10,
+  idIllustrationWrapper: {
+    width: 154,
+    height: 110,
+    borderWidth: 4,
+    borderStyle: 'dashed',
+    borderColor: BG_GRAY,
+    borderRadius: 16,
+    padding: 12,
+    justifyContent: 'center',
     alignItems: 'center',
   },
+  illustration: {
+    width: 130,
+    height: 86,
+  },
+  guidelinesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 48,
+    paddingVertical: 0,
+    marginBottom: 16,
+  },
+  guidelineItem: {
+    alignItems: 'center',
+    gap: 9,
+  },
+  guidelineIconWrapper: {
+    width: 64,
+    height: 44,
+    alignItems: 'flex-end',
+  },
+  guidelineIcon: {
+    width: 64,
+    height: 44,
+  },
+  guidelineLabel: {
+    fontFamily: 'Manrope',
+    fontWeight: '300',
+    fontSize: 12,
+    lineHeight: 16,
+    textAlign: 'center',
+    color: TEXT_MEDIUM_GRAY,
+  },
+  avoidSection: {
+    backgroundColor: BG_BLUE,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    gap: 8,
+    marginBottom: 24,
+    marginHorizontal: -16,
+  },
+  avoidTitle: {
+    fontFamily: 'Manrope',
+    fontWeight: '300',
+    fontSize: 14,
+    lineHeight: 16,
+    letterSpacing: 0.05 * 14,
+    color: TEXT_MEDIUM_GRAY,
+  },
+  avoidList: {
+    gap: 2,
+  },
+  avoidItem: {
+    fontFamily: 'Manrope',
+    fontWeight: '400',
+    fontSize: 14,
+    lineHeight: 20,
+    color: TEXT_GRAY,
+  },
+  continueBtn: {
+    backgroundColor: PRIMARY_DARK,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    height: 56,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   continueText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Manrope',
+    fontWeight: '600',
+    fontSize: 18,
+    lineHeight: 24,
+    textAlign: 'center',
+    color: BG_WHITE,
   },
   // Modal styles
   modalOverlay: {
@@ -251,26 +380,29 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalBox: {
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 20,
   },
   modalTitle: {
+    fontFamily: 'Manrope',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
     marginBottom: 4,
-    color: '#000A63',
+    color: TEXT_DARK,
   },
   modalSub: {
+    fontFamily: 'Manrope',
     fontSize: 14,
-    color: '#777',
+    color: TEXT_MEDIUM_GRAY,
     marginBottom: 12,
   },
   modalItem: {
     paddingVertical: 12,
   },
   modalItemText: {
+    fontFamily: 'Manrope',
     fontSize: 16,
-    color: '#111',
+    color: '#000000',
   },
 });

@@ -1,7 +1,7 @@
 // hooks/useAuth.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useState } from 'react';
-import { getMe } from '../lib/api'; // 👈 we already have this
+import { getMe } from '../lib/api';
 
 const AuthContext = createContext();
 
@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   const restoreToken = async () => {
-    const storedToken = await AsyncStorage.getItem('auth_token');
+    const storedToken = await AsyncStorage.getItem('token'); // 👈 fixed
     if (storedToken) {
       setToken(storedToken);
       try {
@@ -25,14 +25,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signIn = async (newToken) => {
-    await AsyncStorage.setItem('auth_token', newToken);
+    await AsyncStorage.setItem('token', newToken); // 👈 fixed
     setToken(newToken);
     const me = await getMe(newToken);
     setUser(me);
   };
 
   const signOut = async () => {
-    await AsyncStorage.removeItem('auth_token');
+    await AsyncStorage.removeItem('token'); // 👈 fixed
     setToken(null);
     setUser(null);
   };

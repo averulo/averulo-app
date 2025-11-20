@@ -31,11 +31,21 @@ export default function LoginScreen() {
 
     if (res.data.success) {
       console.log("✅ OTP sent successfully:", res.data);
-      console.log("Navigation object:", navigation);
-      navigation.navigate("OtpScreen", { email });
-    } else {
-      alert("Failed to send OTP: " + (res.data.message || "Unknown error"));
-    }
+
+      // ⚡ Show dev OTP (for development only)
+      if (res.data.devOtp) {
+        console.log("🧩 DEV OTP:", res.data.devOtp);
+        alert(`🧩 Dev OTP: ${res.data.devOtp}`);
+      }
+
+      // 🔀 Navigate to OTP screen and pass devOtp
+      navigation.navigate("OtpScreen", {
+        email,
+        devOtp: res.data.devOtp || null,
+      });
+      } else {
+        alert("Failed to send OTP: " + (res.data.message || "Unknown error"));
+      }
     } catch (err) {
       console.error("❌ Error sending OTP:", err.message);
       alert("Network or server error: " + err.message);
