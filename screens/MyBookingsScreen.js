@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import axios from "axios";
 import { useEffect, useState } from "react";
+import { API_BASE } from "../lib/api";
 import {
   Dimensions,
   Image,
@@ -83,7 +84,7 @@ export default function MyBookingsScreen() {
     try {
       setLoading(true);
       const res = await axios.post(
-        "http://192.168.100.6:4000/api/bookings",
+        `${API_BASE}/api/bookings`,
         {
           propertyId: property.id,
           name,

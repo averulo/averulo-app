@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useEffect, useState } from "react";
+import { API_BASE } from "../lib/api";
 import {
   ActivityIndicator,
   Image,
@@ -46,7 +47,7 @@ export default function PropertiesListScreen() {
       const token = await getToken();
 
       // Build query URL
-      let url = `http://192.168.100.6:4000/api/properties?q=${search}`;
+      let url = `${API_BASE}/api/properties?q=${search}`;
 
       // Add location params if available
       if (latitude && longitude) {
@@ -185,11 +186,14 @@ export default function PropertiesListScreen() {
               <Image
                 source={{
                   uri:
+                    (hotel.images && hotel.images[0]?.url) ||
+                    (hotel.images && hotel.images[0]) ||
                     hotel.coverImage ||
                     hotel.image ||
-                    "https://via.placeholder.com/400x300",
+                    "https://images.pexels.com/photos/271639/pexels-photo-271639.jpeg",
                 }}
                 style={styles.cardImage}
+                resizeMode="cover"
               />
 
               {/* LOWER SECTION */}

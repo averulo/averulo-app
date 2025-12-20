@@ -3,6 +3,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import { useLayoutEffect, useState } from 'react';
+import { API_BASE } from '../lib/api';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -46,13 +47,22 @@ export default function SignUpScreen() {
   if (!allFieldsFilled) return;
 
   try {
-    const res = await axios.post("http://192.168.100.6:4000/api/send-otp", { email });
+    const res = await axios.post(`${API_BASE}/api/send-otp`, { email });
 
     if (res.data.success) {
+      console.log("✅ OTP sent successfully:", res.data);
+
+      // Show dev OTP (for development only)
+      if (res.data.devOtp) {
+        console.log("🧩 DEV OTP:", res.data.devOtp);
+        alert(`🧩 Dev OTP: ${res.data.devOtp}`);
+      }
+
       navigation.navigate('OtpScreen', {
         name,
         email,
         dob: formatDate(dob),
+        devOtp: res.data.devOtp || null,
       });
     } else {
       alert("OTP failed to send: " + res.data.message);
@@ -94,7 +104,7 @@ export default function SignUpScreen() {
             onBlur={() => setFocusedField('')}
             />
 
-          <Text style={styles.label}>Date of birth (mm/dd/yyyy)</Text>
+          <Text style={styles.label}>Year of birth (mm/dd/yyyy)</Text>
           <Pressable onPress={() => setShowPicker(true)} style={styles.datePicker}>
             <Text style={{ color: dob ? '#000' : '#aaa', fontSize: 16 }}>
               {dob ? formatDate(dob) : 'MM/DD/YYYY'}

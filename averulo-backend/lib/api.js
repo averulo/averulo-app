@@ -1,7 +1,7 @@
 import Constants from "expo-constants";
 
 export const API_BASE =
-  Constants.expoConfig?.extra?.apiUrl || "http://192.168.100.6:4000"; // ← change to your local IP
+  Constants.expoConfig?.extra?.apiUrl || "http://192.168.100.43:4000"; // ← change to your local IP
 
 // Helper to handle JSON or error
 async function j(res) {

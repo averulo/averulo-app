@@ -1,9 +1,12 @@
 // screens/host/BecomeHostScreen.js
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const PRIMARY_DARK = "#000A63";
+const PRIMARY_DARK = "#04123C";
+const TEXT_DARK = "#012232";
+const TEXT_MEDIUM = "#3E5663";
 
 export default function BecomeHostScreen() {
   const navigation = useNavigation();
@@ -11,22 +14,23 @@ export default function BecomeHostScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* TOP: LOG IN LINK */}
-        <TouchableOpacity
-          style={styles.loginLink}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.loginText}>Log in</Text>
-        </TouchableOpacity>
+        {/* BACK BUTTON */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
+            <Ionicons name="arrow-back" size={24} color={TEXT_DARK} />
+          </TouchableOpacity>
+        </View>
 
         {/* ILLUSTRATION */}
         <View style={styles.illustrationContainer}>
-          {/* TODO: Add host-onboarding.png to assets folder */}
-          <View style={styles.illustrationPlaceholder}>
-            <Text style={styles.illustrationEmoji}>🏠</Text>
-            <Text style={styles.illustrationEmoji}>✅</Text>
-            <Text style={styles.illustrationEmoji}>📅</Text>
-          </View>
+          <Image
+            source={require('../../assets/images/host-illustration.png')}
+            style={styles.illustrationImage}
+            resizeMode="cover"
+          />
         </View>
 
         {/* CONTENT */}
@@ -40,7 +44,7 @@ export default function BecomeHostScreen() {
         {/* CONTINUE BUTTON */}
         <TouchableOpacity
           style={styles.continueButton}
-          onPress={() => navigation.navigate("HostOnboardingFlow")}
+          onPress={() => navigation.navigate("HostOnboardingScreen")}
         >
           <Text style={styles.continueButtonText}>Continue</Text>
         </TouchableOpacity>
@@ -57,81 +61,71 @@ const styles = StyleSheet.create({
 
   container: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
   },
 
-  loginLink: {
-    alignSelf: "flex-start",
-    paddingVertical: 8,
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
 
-  loginText: {
-    fontSize: 16,
-    color: PRIMARY_DARK,
-    fontFamily: "Manrope-Medium",
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   illustrationContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    marginVertical: 40,
+    width: "100%",
+    height: 386,
+    overflow: "hidden",
   },
 
-  illustration: {
+  illustrationImage: {
     width: "100%",
     height: "100%",
-    maxHeight: 400,
-  },
-
-  illustrationPlaceholder: {
-    width: "100%",
-    height: 300,
-    backgroundColor: "#F0F4FF",
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 20,
-  },
-
-  illustrationEmoji: {
-    fontSize: 60,
   },
 
   content: {
-    marginBottom: 40,
+    paddingHorizontal: 16,
+    marginTop: 32,
   },
 
   title: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: "700",
     fontFamily: "Manrope-Bold",
-    color: "#111",
-    marginBottom: 12,
-    lineHeight: 40,
+    color: TEXT_DARK,
+    lineHeight: 24,
+    marginBottom: 8,
   },
 
   subtitle: {
-    fontSize: 16,
-    fontFamily: "Manrope-Regular",
-    color: "#6B7280",
-    lineHeight: 24,
+    fontSize: 14,
+    fontWeight: "300",
+    fontFamily: "Manrope-Light",
+    color: TEXT_MEDIUM,
+    lineHeight: 16,
   },
 
   continueButton: {
     backgroundColor: PRIMARY_DARK,
-    paddingVertical: 18,
-    borderRadius: 12,
+    paddingVertical: 16,
+    borderRadius: 8,
     alignItems: "center",
-    marginBottom: 20,
+    justifyContent: "center",
+    marginHorizontal: 16,
+    marginTop: "auto",
+    marginBottom: 40,
+    height: 56,
   },
 
   continueButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-    fontFamily: "Manrope-Bold",
+    color: "#FCFEFE",
+    fontSize: 18,
+    fontWeight: "600",
+    fontFamily: "Manrope-SemiBold",
+    lineHeight: 24,
   },
 });

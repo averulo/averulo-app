@@ -1,0 +1,39 @@
+Subject: Averulo App - Live Demo Access
+
+Hi,
+
+I've prepared the Averulo property rental app for your review. You can test it on your phone in 2 minutes:
+
+📱 INSTRUCTIONS:
+1. Install "Expo Go" app (FREE from App Store/Play Store)
+2. Open Expo Go → Tap "Scan QR Code"
+3. Scan this QR code:
+The full app will load on your phone in ~30 seconds!
+
+🎯 FEATURES TO TEST:
+✅ Guest booking flow (browse → book → payment)
+✅ Host property creation (12-step wizard)
+✅ Admin dashboard
+✅ KYC verification
+✅ Reviews & ratings
+
+🔧 TECH STACK:
+• React Native + Expo (Frontend)
+• Node.js + Express + Prisma (Backend)
+• PostgreSQL (Database)
+• Paystack (Payments)
+• Mapbox (Maps)
+
+📊 SCOPE:
+47 screens, full-stack property rental platform similar to Airbnb
+
+🔗 GitHub Repo: 
+
+⏰ AVAILABILITY:
+Backend is running live now. Best testing experience during business hours, but happy to schedule a live demo walkthrough anytime!
+
+
+Let me know if you have any questions!
+
+Best regards,
+kehinde

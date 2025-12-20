@@ -14,7 +14,22 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getProperty, toggleFavorite } from "../lib/api";
+import Constants from "expo-constants";
+import { getProperty, getPropertyReviews, toggleFavorite } from "../lib/api";
+
+// Conditionally import Mapbox (requires native rebuild)
+let Mapbox = null;
+let MAPBOX_AVAILABLE = false;
+try {
+  Mapbox = require("@rnmapbox/maps").default;
+  const MAPBOX_TOKEN = Constants.expoConfig?.extra?.mapboxAccessToken;
+  if (MAPBOX_TOKEN && MAPBOX_TOKEN !== "YOUR_MAPBOX_TOKEN_HERE") {
+    Mapbox.setAccessToken(MAPBOX_TOKEN);
+    MAPBOX_AVAILABLE = true;
+  }
+} catch (err) {
+  console.log("⚠️ Mapbox not available - using fallback image for maps");
+}
 
 // Design colors from spec
 const PRIMARY_DARK = "#04123C";     // 50% purple Primary
@@ -81,6 +96,8 @@ export default function PropertyDetailsScreen() {
   const [prop, setProp] = useState(passedProperty || null);
   const [loading, setLoading] = useState(!passedProperty);
   const [favorite, setFavorite] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   // DEBUG (helps you see what is coming in)
   useEffect(() => {
@@ -90,6 +107,7 @@ export default function PropertyDetailsScreen() {
   useEffect(() => {
     // 🔹 If property was passed from the listing, DO NOT FETCH
     if (passedProperty) {
+      console.log("✅ Property passed from listing:", passedProperty);
       setProp(passedProperty);
       setFavorite(Boolean(passedProperty?.isFavorite));
       setLoading(false);
@@ -98,14 +116,23 @@ export default function PropertyDetailsScreen() {
 
     // 🔹 No property object & no id → nothing to load
     if (!id) {
+      console.log("⚠️ No property object and no ID");
       setLoading(false);
       return;
     }
 
-    // 🔹 Fetch from backend when we only have an id
+    // 🔹 Skip backend fetch for demo properties
+    if (id.startsWith && id.startsWith('demo-')) {
+      console.log("⚠️ Demo property ID detected, cannot fetch from backend:", id);
+      setLoading(false);
+      return;
+    }
+
+    // 🔹 Fetch from backend when we only have a real id
     (async () => {
       try {
         setLoading(true);
+        console.log("📡 Fetching property from backend with ID:", id);
         const data = await getProperty(id);
         setProp(data);
         setFavorite(Boolean(data?.isFavorite));
@@ -118,9 +145,37 @@ export default function PropertyDetailsScreen() {
     })();
   }, [id, passedProperty]);
 
+  // Fetch reviews
+  useEffect(() => {
+    const propertyId = prop?.id || id;
+    if (!propertyId) return;
+
+    // Skip fetching reviews for demo properties
+    if (propertyId.startsWith('demo-')) {
+      setReviews([]);
+      setReviewsLoading(false);
+      return;
+    }
+
+    (async () => {
+      try {
+        setReviewsLoading(true);
+        const data = await getPropertyReviews(propertyId);
+        setReviews(data || []);
+      } catch (err) {
+        console.log("❌ Failed to load reviews:", err?.message);
+        setReviews([]);
+      } finally {
+        setReviewsLoading(false);
+      }
+    })();
+  }, [prop?.id, id]);
+
   async function handleFavorite() {
-    if (!id) {
-      // if you want to support favorite in demo mode, you can store it locally
+    const propertyId = prop?.id || id;
+
+    // Handle demo properties or missing ID
+    if (!propertyId || propertyId.startsWith('demo-')) {
       setFavorite((prev) => !prev);
       return;
     }
@@ -128,7 +183,7 @@ export default function PropertyDetailsScreen() {
     try {
       const newVal = !favorite;
       setFavorite(newVal);
-      await toggleFavorite(id, null, newVal);
+      await toggleFavorite(propertyId, null, newVal);
     } catch (err) {
       console.log("❌ Favorite error:", err?.message);
     }
@@ -157,7 +212,7 @@ export default function PropertyDetailsScreen() {
       ? prop.price
       : 644653; // backend number vs demo string
   const rating = prop.avgRating ? prop.avgRating.toFixed(1) : "4.9";
-  const reviews = prop.reviewsCount || 1540;
+  const reviewCount = prop.reviewsCount || 1540;
 
   const images = prop.images?.length
     ? prop.images.map((img) => img.url)
@@ -228,7 +283,7 @@ export default function PropertyDetailsScreen() {
                 <Text style={styles.ratingNumber}>{rating}</Text>
               </View>
               <Text style={styles.ratingText}>
-                Very good · {reviews.toLocaleString()} reviews
+                Very good · {reviewCount.toLocaleString()} reviews
               </Text>
             </View>
 
@@ -291,14 +346,43 @@ export default function PropertyDetailsScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Location</Text>
 
-              <Image
-                source={{
-                  uri:
-                    prop.mapImage ||
-                    "https://images.pexels.com/photos/1117452/pexels-photo-1117452.jpeg",
-                }}
-                style={styles.mapImage}
-              />
+              {prop.latitude && prop.longitude && MAPBOX_AVAILABLE && Mapbox ? (
+                <View style={styles.mapContainer}>
+                  <Mapbox.MapView
+                    style={styles.mapImage}
+                    styleURL={Mapbox.StyleURL.Street}
+                    zoomEnabled={true}
+                    scrollEnabled={true}
+                    pitchEnabled={false}
+                    rotateEnabled={false}
+                  >
+                    <Mapbox.Camera
+                      zoomLevel={14}
+                      centerCoordinate={[prop.longitude, prop.latitude]}
+                      animationMode="moveTo"
+                    />
+                    <Mapbox.PointAnnotation
+                      id="property-location"
+                      coordinate={[prop.longitude, prop.latitude]}
+                    >
+                      <View style={styles.markerContainer}>
+                        <View style={styles.marker}>
+                          <Ionicons name="location" size={24} color="#FFFFFF" />
+                        </View>
+                      </View>
+                    </Mapbox.PointAnnotation>
+                  </Mapbox.MapView>
+                </View>
+              ) : (
+                <Image
+                  source={{
+                    uri:
+                      prop.mapImage ||
+                      "https://images.pexels.com/photos/1117452/pexels-photo-1117452.jpeg",
+                  }}
+                  style={styles.mapImage}
+                />
+              )}
 
               <Text style={styles.mapAddress}>
                 {prop.address ||
@@ -358,50 +442,81 @@ export default function PropertyDetailsScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Select a Room</Text>
 
-              <TouchableOpacity
-              style={styles.roomBtn}
-              onPress={() =>
-                navigation.navigate("BookingDetailsScreen", {
-                  property: prop,
-                  propertyId: prop.id,
-                  roomName: room.title,
-                  roomImage: room.image,
-                  // temporary dates until you hook real date picker
-                  checkIn: new Date().toISOString().slice(0, 10),
-                  checkOut: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
-                    .toISOString()
-                    .slice(0, 10),
-                  guests: 1,
-                })
-              }
-            >
-              <Text style={styles.roomBtnText}>Book Now</Text>
-            </TouchableOpacity>
+              {ROOMS_DATA.map((room, idx) => (
+                <View key={idx} style={styles.roomCard}>
+                  <Image source={{ uri: room.image }} style={styles.roomImage} />
+                  <View style={styles.roomInfoRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.roomTitle}>{room.title}</Text>
+                      <Text style={styles.roomPrice}>{room.price}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.roomBtn}
+                      onPress={() =>
+                        navigation.navigate("BookingDetailsScreen", {
+                          property: { ...prop, id: prop.id || id },
+                          roomName: room.title,
+                          roomImage: room.image,
+                        })
+                      }
+                    >
+                      <Text style={styles.roomBtnText}>Book</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
             </View>
 
             {/* RATING & REVIEW */}
             <View style={styles.section}>
               <View style={styles.ratingHeaderRow}>
                 <Text style={styles.sectionTitle}>Rating & Review</Text>
-                <Text style={styles.reviewCount}>5 reviews</Text>
+                <Text style={styles.reviewCount}>
+                  {reviewsLoading ? "..." : `${reviews.length} review${reviews.length !== 1 ? 's' : ''}`}
+                </Text>
               </View>
 
-              <View style={styles.reviewCard}>
-                <Image
-                  source={{
-                    uri: "https://randomuser.me/api/portraits/men/41.jpg",
-                  }}
-                  style={styles.reviewAvatar}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.reviewName}>James Mark</Text>
-                  <Text style={styles.reviewRole}>Guest • 1 night stay</Text>
-                  <Text style={styles.reviewText}>
-                    I had the Deluxe Double room last night, and it was absolutely
-                    phenomenal. The room was spotless and the staff were very warm.
-                  </Text>
-                </View>
-              </View>
+              {reviewsLoading ? (
+                <ActivityIndicator size="small" color={PRIMARY_DARK} style={{ marginVertical: 20 }} />
+              ) : reviews.length > 0 ? (
+                reviews.map((review, idx) => (
+                  <View key={review.id} style={[styles.reviewCard, idx > 0 && { marginTop: 12 }]}>
+                    <Image
+                      source={{
+                        uri: `https://ui-avatars.com/api/?name=${encodeURIComponent(review.guest?.name || review.guest?.email || 'User')}&background=random`,
+                      }}
+                      style={styles.reviewAvatar}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={styles.reviewName}>{review.guest?.name || review.guest?.email || 'Guest'}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Ionicons name="star" size={14} color={YELLOW} />
+                          <Text style={{ marginLeft: 4, fontSize: 13, color: TEXT_DARK, fontWeight: '600', fontFamily: 'Manrope' }}>
+                            {typeof review.rating === 'number' ? review.rating.toFixed(1) : review.rating}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.reviewRole}>
+                        {new Date(review.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </Text>
+                      {review.comment && (
+                        <Text style={styles.reviewText}>{review.comment}</Text>
+                      )}
+                      {review.reply && (
+                        <View style={{ marginTop: 10, paddingLeft: 12, borderLeftWidth: 3, borderLeftColor: BG_GRAY }}>
+                          <Text style={[styles.reviewRole, { fontWeight: '600' }]}>Host reply:</Text>
+                          <Text style={styles.reviewText}>{review.reply}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <Text style={{ textAlign: 'center', color: TEXT_MEDIUM, marginVertical: 20, fontFamily: 'Manrope' }}>
+                  No reviews yet. Be the first to review!
+                </Text>
+              )}
             </View>
 
             {/* SIMILAR PROPERTIES */}
@@ -444,7 +559,7 @@ export default function PropertyDetailsScreen() {
             style={styles.bookBtn}
             onPress={() =>
               navigation.navigate("BookingDetailsScreen", {
-                property: prop,
+                property: { ...prop, id: prop.id || id },
               })
             }
           >
@@ -606,6 +721,13 @@ const styles = StyleSheet.create({
     fontFamily: "Manrope",
   },
 
+  mapContainer: {
+    width: "100%",
+    height: 180,
+    borderRadius: CARD_RADIUS,
+    overflow: "hidden",
+    marginBottom: 8,
+  },
   mapImage: {
     width: "100%",
     height: 180,
@@ -618,6 +740,25 @@ const styles = StyleSheet.create({
     color: TEXT_MEDIUM,
     fontFamily: "Manrope",
     fontWeight: "400",
+  },
+  markerContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  marker: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: PRIMARY_DARK,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 
   areaSubtitle: {

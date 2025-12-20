@@ -52,13 +52,25 @@ export default function BookingTicketScreen() {
           </Text>
         </View>
 
-        {/* CLOSE BUTTON (optional) */}
-        <TouchableOpacity
-          style={styles.closeButton}
-          onPress={() => navigation.navigate("MainTabs")}
-        >
-          <Text style={styles.closeButtonText}>Done</Text>
-        </TouchableOpacity>
+        {/* ACTION BUTTONS */}
+        <View style={styles.buttonGroup}>
+          <TouchableOpacity
+            style={styles.reviewButton}
+            onPress={() => navigation.navigate("WriteReviewScreen", {
+              bookingId: booking?.id,
+              propertyName: property?.title || property?.roomType || "Property"
+            })}
+          >
+            <Text style={styles.reviewButtonText}>Write Review</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => navigation.navigate("MainTabs")}
+          >
+            <Text style={styles.closeButtonText}>Done</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -151,8 +163,30 @@ const styles = StyleSheet.create({
     color: "#111",
   },
 
-  closeButton: {
+  buttonGroup: {
     marginTop: 40,
+    width: "100%",
+    gap: 12,
+  },
+
+  reviewButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: PRIMARY_DARK,
+  },
+
+  reviewButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    fontFamily: "Manrope-Bold",
+    color: PRIMARY_DARK,
+    textAlign: "center",
+  },
+
+  closeButton: {
     paddingVertical: 14,
     paddingHorizontal: 40,
     backgroundColor: "#FFFFFF",
@@ -164,5 +198,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontFamily: "Manrope-Bold",
     color: PRIMARY_DARK,
+    textAlign: "center",
   },
 });

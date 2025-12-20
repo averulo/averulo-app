@@ -2,65 +2,121 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { Image, Platform, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+const PRIMARY_BLUE = '#0094FF';
+
 export default function TakePhotoOfPassportScreen() {
-  const [passportPhoto, setPassportPhoto] = useState(null);
+  const [selfiePhoto, setSelfiePhoto] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const navigation = useNavigation();
 
-  const pickImage = async () => {
+  const openCamera = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission required', 'Camera access is needed!');
+      return;
+    }
+
     const result = await ImagePicker.launchCameraAsync({
-      quality: 1,
       allowsEditing: true,
-      aspect: [4, 3],
-      base64: true,
+      aspect: [1, 1], // Square for circular display
+      quality: 1,
+      cameraType: ImagePicker.CameraType.front, // Front camera for selfie
     });
-    if (!result.canceled) {
-      setPassportPhoto(result.assets[0].uri);
+
+    if (!result.canceled && result.assets?.length > 0) {
+      setSelfiePhoto(result.assets[0].uri);
     }
   };
 
+  const handleRetake = () => {
+    setSelfiePhoto(null);
+  };
+
   const handleSubmit = () => {
-    if (!passportPhoto) return;
-    console.log('✅ Submitting Passport Photo:', passportPhoto);
-    // Navigate or call API here
+    if (!selfiePhoto) {
+      Alert.alert('No photo', 'Please take a selfie first');
+      return;
+    }
+
+    setSubmitting(true);
+    console.log('✅ Submitting Selfie Photo:', selfiePhoto);
+
+    // Simulate submission delay
+    setTimeout(() => {
+      setSubmitting(false);
+      Alert.alert(
+        'Success',
+        'Your verification is complete! Now let\'s set up your property listing.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Navigate to property creation flow
+              navigation.navigate('CreatePropertyScreen');
+            },
+          },
+        ]
+      );
+    }, 1500);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* ✅ Back Button */}
+      {/* Back Button */}
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
         <Ionicons name="chevron-back" size={28} color="#fff" />
       </TouchableOpacity>
 
-      {/* ✅ Title */}
-      <Text style={styles.title}>Take a photo of your Passport</Text>
+      {/* Title */}
+      <Text style={styles.title}>Take a photo of yourself</Text>
+      <Text style={styles.subtitle}>It should match with the photo in your ID</Text>
 
-      {/* ✅ Image Preview Box */}
-      <TouchableOpacity style={styles.previewBox} onPress={pickImage}>
-        {passportPhoto ? (
-          <Image source={{ uri: passportPhoto }} style={styles.image} />
-        ) : (
-          <Text style={styles.tapText}>Tap to take passport photo</Text>
-        )}
-      </TouchableOpacity>
+      {/* Circular Image Preview */}
+      <View style={styles.circleWrapper}>
+        <TouchableOpacity
+          style={styles.circlePreview}
+          onPress={openCamera}
+          disabled={submitting}
+        >
+          {selfiePhoto ? (
+            <Image source={{ uri: selfiePhoto }} style={styles.circleImage} />
+          ) : (
+            <View style={styles.placeholder}>
+              <Ionicons name="person" size={80} color="#555" />
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
 
-      {/* ✅ Instruction */}
-      <Text style={styles.instruction}>
-        Center your passport in the frame and we’ll take the photo automatically
-      </Text>
+      {/* Info Box */}
+      <View style={styles.infoBox}>
+        <Text style={styles.infoTitle}>Center your face in the circle</Text>
+        <Text style={styles.infoText}>
+          Center your face in the frame and we'll take the photo automatically
+        </Text>
+      </View>
 
-      {/* ✅ Retake Button */}
-      {passportPhoto && (
-        <TouchableOpacity onPress={pickImage}>
-          <Text style={styles.retake}>Retake the Photo</Text>
+      {/* Retake Button */}
+      {selfiePhoto && !submitting && (
+        <TouchableOpacity onPress={handleRetake} style={styles.retakeBtn}>
+          <Text style={styles.retakeText}>Retake the Photo</Text>
         </TouchableOpacity>
       )}
 
-      {/* ✅ Submit Button */}
-      <TouchableOpacity onPress={handleSubmit} style={styles.submitButton}>
-        <Text style={styles.submitText}>Submit Photo</Text>
+      {/* Submit Button */}
+      <TouchableOpacity
+        onPress={handleSubmit}
+        style={[styles.submitButton, (!selfiePhoto || submitting) && styles.submitButtonDisabled]}
+        disabled={!selfiePhoto || submitting}
+      >
+        {submitting ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.submitText}>Submit Photo</Text>
+        )}
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -70,61 +126,95 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 10,
   },
   backBtn: {
     paddingVertical: 4,
     paddingHorizontal: 4,
-    marginBottom: 10,
+    marginBottom: 20,
+    alignSelf: 'flex-start',
   },
   title: {
     color: '#fff',
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '600',
-    marginBottom: 20,
-    textAlign: 'center',
-    paddingTop: Platform.OS === 'ios' ? 20 : 0,
+    fontFamily: 'Manrope-SemiBold',
+    marginBottom: 8,
   },
-  previewBox: {
-    width: '100%',
-    height: 200,
+  subtitle: {
+    color: '#aaa',
+    fontSize: 14,
+    fontFamily: 'Manrope-Regular',
+    marginBottom: 40,
+  },
+  circleWrapper: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  circlePreview: {
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    borderWidth: 3,
+    borderColor: '#fff',
     backgroundColor: '#1f1f1f',
-    borderRadius: 10,
     justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  placeholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  circleImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  infoBox: {
+    backgroundColor: '#0F3D5C',
+    padding: 16,
+    borderRadius: 10,
+    marginBottom: 24,
+  },
+  infoTitle: {
+    color: '#fff',
+    fontWeight: '600',
+    fontFamily: 'Manrope-SemiBold',
+    fontSize: 15,
+    marginBottom: 6,
+  },
+  infoText: {
+    color: '#B8D4E8',
+    fontSize: 13,
+    fontFamily: 'Manrope-Regular',
+    lineHeight: 18,
+  },
+  retakeBtn: {
     alignItems: 'center',
     marginBottom: 16,
   },
-  tapText: {
-    color: '#aaa',
-    fontSize: 16,
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 10,
-    resizeMode: 'cover',
-  },
-  instruction: {
-    color: '#ccc',
-    textAlign: 'center',
-    fontSize: 14,
-    marginBottom: 20,
-  },
-  retake: {
+  retakeText: {
     color: '#fff',
-    textAlign: 'center',
     fontSize: 16,
-    marginBottom: 20,
+    fontFamily: 'Manrope-Medium',
   },
   submitButton: {
-    backgroundColor: '#0094FF',
-    padding: 15,
-    borderRadius: 8,
+    backgroundColor: PRIMARY_BLUE,
+    paddingVertical: 16,
+    borderRadius: 10,
     alignItems: 'center',
+    marginTop: 'auto',
+    marginBottom: 20,
+  },
+  submitButtonDisabled: {
+    opacity: 0.5,
   },
   submitText: {
     color: '#fff',
     fontWeight: '600',
+    fontFamily: 'Manrope-SemiBold',
     fontSize: 16,
   },
 });

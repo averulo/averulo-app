@@ -71,8 +71,9 @@ app.post(
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN?.split(",") || "*",
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   })
 );
 app.use(express.json());

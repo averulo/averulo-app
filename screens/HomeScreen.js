@@ -63,14 +63,14 @@ export default function HomeScreen() {
         </View>
 
         {/* ─────────── SEARCH BAR ─────────── */}
-        <View style={styles.searchBar}>
+        <TouchableOpacity
+          style={styles.searchBar}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate("SearchScreen")}
+        >
           <Ionicons name="search-outline" size={20} color="#9CA3AF" />
-          <TextInput
-            placeholder="Search for location, hotel"
-            placeholderTextColor="#9CA3AF"
-            style={styles.searchInput}
-          />
-        </View>
+          <Text style={styles.searchPlaceholder}>Search for location, hotel</Text>
+        </TouchableOpacity>
 
         {/* ─────────── FILTER CHIPS ─────────── */}
         <View style={styles.filterRow}>
@@ -102,7 +102,22 @@ export default function HomeScreen() {
           contentContainerStyle={{ paddingRight: 16 }}
         >
           {RECOMMEND_DATA.map((hotel, i) => (
-            <View key={i} style={styles.recommendCard}>
+            <TouchableOpacity
+              key={i}
+              style={styles.recommendCard}
+              activeOpacity={0.8}
+              onPress={() =>
+                navigation.navigate("PropertyDetailsScreen", {
+                  property: {
+                    id: hotel.id,
+                    name: hotel.name,
+                    image: hotel.image,
+                    price: hotel.price,
+                    rating: 9.0,
+                  },
+                })
+              }
+            >
               <Image source={{ uri: hotel.image }} style={styles.recommendImg} />
               <View style={styles.recommendInfo}>
                 <Text style={styles.recommendName}>{hotel.name}</Text>
@@ -116,7 +131,7 @@ export default function HomeScreen() {
                   <Text style={styles.ratingSubText}>Wonderful · 15 reviews</Text>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </ScrollView>
 
@@ -257,12 +272,14 @@ function BusinessCard() {
 
 const RECOMMEND_DATA = [
   {
+    id: "demo-property-1",
     name: "Lugar de grande 510",
     location: "South Africa",
     price: "₦644,653",
     image: "https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg",
   },
   {
+    id: "demo-property-2",
     name: "King Hotel, Lagos",
     location: "Nigeria",
     price: "₦704,653",
@@ -335,6 +352,13 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: "Manrope",
     color: TEXT_DARK,
+  },
+  searchPlaceholder: {
+    marginLeft: 8,
+    fontSize: 14,
+    flex: 1,
+    fontFamily: "Manrope",
+    color: "#9CA3AF",
   },
 
   filterRow: {

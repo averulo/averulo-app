@@ -220,15 +220,17 @@ router.post("/", auth(true), validate(createBookingSchema), async (req, res) => 
       },
     });
 
-    // Notify host (best effort)
+    // Notify host (fire and forget, don't block response)
     if (prop.host?.email) {
-      await notifyHostBooking({
+      notifyHostBooking({
         hostEmail: prop.host.email,
         propertyTitle: prop.title,
         start: start.toISOString().slice(0, 10),
         end: end.toISOString().slice(0, 10),
         guestEmail: req.user?.email || "guest",
-      }).catch(() => {});
+      }).catch((err) => {
+        console.error("❌ Failed to send host notification:", err.message);
+      });
     }
 
     return res.status(201).json(created);
@@ -319,13 +321,16 @@ router.patch("/:id/approve", auth(true), requireRole("HOST", "ADMIN"), validate(
 
     const updated = await prisma.booking.update({ where: { id: booking.id }, data: { status: "APPROVED" } });
 
-    await notifyGuestBookingStatus({
+    // Notify guest (fire and forget, don't block response)
+    notifyGuestBookingStatus({
       guestEmail: booking.guest?.email,
       propertyTitle: booking.property?.title,
       status: "APPROVED",
       start: new Date(booking.startDate).toISOString().slice(0, 10),
       end: new Date(booking.endDate).toISOString().slice(0, 10),
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error("❌ Failed to send guest notification:", err.message);
+    });
 
     res.json(updated);
   } catch (err) {
@@ -347,13 +352,16 @@ router.patch("/:id/reject", auth(true), requireRole("HOST", "ADMIN"), validate(i
 
     const updated = await prisma.booking.update({ where: { id: booking.id }, data: { status: "REJECTED" } });
 
-    await notifyGuestBookingStatus({
+    // Notify guest (fire and forget, don't block response)
+    notifyGuestBookingStatus({
       guestEmail: booking.guest?.email,
       propertyTitle: booking.property?.title,
       status: "REJECTED",
       start: new Date(booking.startDate).toISOString().slice(0, 10),
       end: new Date(booking.endDate).toISOString().slice(0, 10),
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error("❌ Failed to send rejection notification:", err.message);
+    });
 
     res.json(updated);
   } catch (err) {
@@ -374,13 +382,16 @@ router.patch("/:id/cancel", auth(true), validate(idParamSchema, "params"), async
 
     const updated = await prisma.booking.update({ where: { id: booking.id }, data: { status: "CANCELLED" } });
 
-    await notifyGuestBookingStatus({
+    // Notify guest (fire and forget, don't block response)
+    notifyGuestBookingStatus({
       guestEmail: booking.guest?.email,
       propertyTitle: booking.property?.title,
       status: "CANCELLED",
       start: new Date(booking.startDate).toISOString().slice(0, 10),
       end: new Date(booking.endDate).toISOString().slice(0, 10),
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error("❌ Failed to send cancellation notification:", err.message);
+    });
 
     res.json(updated);
   } catch (err) {

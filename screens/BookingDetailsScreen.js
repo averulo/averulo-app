@@ -1,8 +1,8 @@
 // screens/BookingDetailsScreen.js
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useState } from "react";
+import { API_BASE } from "../lib/api";
 import {
   Alert,
   Image,
@@ -13,6 +13,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import DateRangePicker from "../components/DateRangePicker";
+import { useAuth } from "../hooks/useAuth";
 
 const PRIMARY = "#000A63";
 const MUTED = "#6B7280";
@@ -21,14 +23,24 @@ const BORDER_COLOR = "#E5E7EB";
 export default function BookingDetailsScreen() {
   const route = useRoute();
   const navigation = useNavigation();
-  const { property } = route.params || {};
+  const {
+    property,
+    checkIn: initialCheckIn,
+    checkOut: initialCheckOut,
+    guestName: initialGuestName,
+    email: initialEmail,
+    phone: initialPhone,
+    notes: initialNotes,
+  } = route.params || {};
+  const { token } = useAuth();
 
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
-  const [guestName, setGuestName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [notes, setNotes] = useState("");
+  const [checkIn, setCheckIn] = useState(initialCheckIn || "");
+  const [checkOut, setCheckOut] = useState(initialCheckOut || "");
+  const [guestName, setGuestName] = useState(initialGuestName || "");
+  const [email, setEmail] = useState(initialEmail || "");
+  const [phone, setPhone] = useState(initialPhone || "");
+  const [notes, setNotes] = useState(initialNotes || "");
+  const [guests, setGuests] = useState(route.params?.guests || 1);
   const [submitting, setSubmitting] = useState(false);
 
   // Special requests state
@@ -51,7 +63,7 @@ export default function BookingDetailsScreen() {
 
   const handleContinue = async () => {
     if (!property?.id) {
-      Alert.alert("Error", "Missing property id");
+      Alert.alert("Error", "Missing property id. Please go back and try again.");
       return;
     }
     if (!checkIn || !checkOut) {
@@ -59,15 +71,13 @@ export default function BookingDetailsScreen() {
       return;
     }
 
+    if (!token) {
+      Alert.alert("Login required", "Please log in to book.");
+      return;
+    }
+
     try {
       setSubmitting(true);
-
-      const token = await AsyncStorage.getItem("auth_token");
-      if (!token) {
-        Alert.alert("Login required", "Please log in again to book.");
-        setSubmitting(false);
-        return;
-      }
 
       // Compile selected special requests
       const selectedRequests = Object.keys(specialRequests)
@@ -75,8 +85,43 @@ export default function BookingDetailsScreen() {
         .map((key) => key.replace(/([A-Z])/g, " $1").trim())
         .join(", ");
 
+      // Handle demo properties differently
+      if (property.id.startsWith && property.id.startsWith('demo-')) {
+        console.log("📋 Creating mock booking for demo property");
+
+        // Create mock booking data
+        const mockBooking = {
+          id: `demo-booking-${Date.now()}`,
+          bookingCode: `DEMO${Math.floor(Math.random() * 1000000)}`,
+          propertyId: property.id,
+          checkIn,
+          checkOut,
+          guests: guests,
+          totalAmount: (property.price || 64465300), // in kobo
+          status: 'PENDING',
+          feesJson: {},
+        };
+
+        // Go directly to confirmation for demo
+        navigation.navigate("ConfirmBookingScreen", {
+          property,
+          booking: mockBooking,
+          checkIn,
+          checkOut,
+          guests,
+          guestName,
+          email,
+          phone,
+          notes: selectedRequests || notes,
+        });
+
+        setSubmitting(false);
+        return;
+      }
+
+      // Real property booking - call backend
       const response = await fetch(
-        "http://192.168.100.6:4000/api/bookings",
+        `${API_BASE}/api/bookings`,
         {
           method: "POST",
           headers: {
@@ -106,6 +151,7 @@ export default function BookingDetailsScreen() {
         booking: data,
         checkIn,
         checkOut,
+        guests,
         guestName,
         email,
         phone,
@@ -347,40 +393,95 @@ export default function BookingDetailsScreen() {
             Booking dates
           </Text>
 
-          <View style={{ marginTop: 4 }}>
-            <Text
-              style={{
-                fontSize: 13,
-                color: MUTED,
-                marginBottom: 12,
-                fontFamily: "Manrope-Regular",
+          <View style={{ marginTop: 16 }}>
+            <DateRangePicker
+              checkIn={checkIn}
+              checkOut={checkOut}
+              onDatesChange={(startDate, endDate) => {
+                setCheckIn(startDate);
+                setCheckOut(endDate);
               }}
-            >
-              Check-in
-            </Text>
-            <TextInput
-              placeholder="YYYY-MM-DD"
-              value={checkIn}
-              onChangeText={setCheckIn}
-              style={inputStyle}
             />
+          </View>
 
+          {/* NUMBER OF GUESTS */}
+          <Text
+            style={{
+              marginTop: 30,
+              fontWeight: "700",
+              fontSize: 18,
+              fontFamily: "Manrope-Bold",
+            }}
+          >
+            Number of guests
+          </Text>
+
+          <View
+            style={{
+              marginTop: 16,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              borderWidth: 1,
+              borderColor: BORDER_COLOR,
+              borderRadius: 10,
+              padding: 14,
+              backgroundColor: "#FAFAFA",
+            }}
+          >
             <Text
               style={{
-                fontSize: 13,
-                color: MUTED,
-                marginBottom: 12,
-                fontFamily: "Manrope-Regular",
+                fontSize: 15,
+                color: "#111",
+                fontFamily: "Manrope-Medium",
               }}
             >
-              Check-out
+              Guests
             </Text>
-            <TextInput
-              placeholder="YYYY-MM-DD"
-              value={checkOut}
-              onChangeText={setCheckOut}
-              style={inputStyle}
-            />
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+              <TouchableOpacity
+                onPress={() => setGuests(Math.max(1, guests - 1))}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: BORDER_COLOR,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  backgroundColor: "#fff",
+                }}
+              >
+                <Text style={{ fontSize: 18, color: "#111", fontWeight: "600" }}>−</Text>
+              </TouchableOpacity>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "600",
+                  color: "#111",
+                  minWidth: 30,
+                  textAlign: "center",
+                  fontFamily: "Manrope-SemiBold",
+                }}
+              >
+                {guests}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setGuests(Math.min(10, guests + 1))}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: PRIMARY,
+                  backgroundColor: PRIMARY,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ fontSize: 18, color: "#fff", fontWeight: "600" }}>+</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* MAKE SPECIAL REQUESTS */}

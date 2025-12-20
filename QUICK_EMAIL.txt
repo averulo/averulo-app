@@ -1,0 +1,27 @@
+Subject: Averulo App - Video Demo + Android Build Coming
+
+Hi [Employer Name],
+
+Apologies for the QR code issue - network limitations on my end.
+
+🎥 VIDEO DEMO:
+I've recorded a full walkthrough here: [PASTE YOUR VIDEO LINK]
+(Shows all features: guest booking, host creation, admin dashboard)
+
+🤖 ANDROID APK (coming in 20 min):
+Building a direct-install version now. Will send download link shortly - no Expo Go needed, works like any regular app.
+
+🔧 TECH STACK:
+• React Native + Expo (Frontend)
+• Node.js + Express + Prisma (Backend)
+• PostgreSQL (Database)
+• Paystack (Payments)
+
+📊 47 screens, full-stack property rental platform
+
+🔗 GitHub: [your repo link]
+
+Happy to schedule a live demo anytime to walk through the code and architecture!
+
+Best,
+[Your Name]

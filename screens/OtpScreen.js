@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
+import { API_BASE } from '../lib/api';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -88,7 +89,7 @@ useEffect(() => {
       const otp = code.join('');
       console.log("🔍 Verifying OTP with:", { email, otp });
 
-      const res = await axios.post("http://192.168.100.6:4000/api/verify-otp", {
+      const res = await axios.post(`${API_BASE}/api/verify-otp`, {
         email,
         otp,
       });

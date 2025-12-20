@@ -23,11 +23,14 @@ export default function ConfirmBookingScreen() {
     booking,
     checkIn,
     checkOut,
+    guests,
     guestName,
     email,
     phone,
     notes,
   } = route.params || {};
+
+  const numGuests = guests || booking?.guests || 1;
 
   if (!property || !booking) {
     return (
@@ -284,6 +287,18 @@ export default function ConfirmBookingScreen() {
               justifyContent: "center",
               paddingHorizontal: 12,
             }}
+            onPress={() => {
+              navigation.navigate("BookingDetailsScreen", {
+                property,
+                checkIn,
+                checkOut,
+                guests: numGuests,
+                guestName,
+                email,
+                phone,
+                notes,
+              });
+            }}
           >
             <Text
               style={{
@@ -323,7 +338,7 @@ export default function ConfirmBookingScreen() {
                 fontFamily: "Manrope-Medium",
               }}
             >
-              1 guest
+              {numGuests} {numGuests === 1 ? 'guest' : 'guests'}
             </Text>
           </View>
 
@@ -331,6 +346,18 @@ export default function ConfirmBookingScreen() {
             style={{
               justifyContent: "center",
               paddingHorizontal: 12,
+            }}
+            onPress={() => {
+              navigation.navigate("BookingDetailsScreen", {
+                property,
+                checkIn,
+                checkOut,
+                guests: numGuests,
+                guestName,
+                email,
+                phone,
+                notes,
+              });
             }}
           >
             <Text
@@ -549,27 +576,29 @@ export default function ConfirmBookingScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* BOOK NOW BUTTON */}
+        {/* BOOK NOW BUTTON - Fake Simulation */}
         <TouchableOpacity
           style={{
             backgroundColor: PRIMARY,
             paddingVertical: 16,
             borderRadius: 12,
           }}
-          onPress={() =>
-            navigation.navigate("PaymentScreen", {
+          onPress={() => {
+            // Navigate directly to booking in progress (fake payment simulation)
+            navigation.navigate("BookingInProgressScreen", {
               bookingId: booking.id,
-              totalAmount: booking.totalAmount || totalNGN * 100, // Send in KOBO
+              totalAmount: booking.totalAmount || totalNGN * 100,
               property,
               booking,
               checkIn,
               checkOut,
+              guests: numGuests,
               guestName,
               email,
               phone,
               notes,
-            })
-          }
+            });
+          }}
         >
           <Text
             style={{

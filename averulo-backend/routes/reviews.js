@@ -101,6 +101,30 @@ router.get("/me", auth(true), async (req, res) => {
   res.json(rows);
 });
 
+// GET /api/reviews/host - get all reviews for host's properties
+router.get("/host", auth(true), requireRole("HOST", "ADMIN"), async (req, res) => {
+  try {
+    const hostId = req.user.sub;
+
+    // Get all reviews for properties owned by this host
+    const reviews = await prisma.review.findMany({
+      where: {
+        property: { hostId },
+      },
+      orderBy: { createdAt: "desc" },
+      include: {
+        guest: { select: { id: true, email: true, name: true } },
+        property: { select: { id: true, title: true, city: true } },
+      },
+    });
+
+    res.json(reviews);
+  } catch (err) {
+    console.error("[reviews:host] error:", err);
+    res.status(500).json({ error: "Failed to fetch host reviews", detail: err.message });
+  }
+});
+
 // PATCH /api/reviews/:id/reply
 router.patch("/:id/reply", auth(true), requireRole("HOST", "ADMIN"), async (req, res) => {
   const { reply } = req.body;

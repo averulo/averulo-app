@@ -2,9 +2,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
+import BookingsListScreen from "../screens/BookingsListScreen";
+import ChatScreen from "../screens/ChatScreen";
 import HomeScreen from "../screens/HomeScreen";
-import MyBookingsScreen from "../screens/MyBookingsScreen";
-import NotificationsScreen from "../screens/NotificationsScreen"; // temporary Chat screen
+import ProfileScreen from "../screens/ProfileScreen";
 import PropertiesListScreen from "../screens/PropertiesListScreen"; // ✅ Explore
 
 const Tab = createBottomTabNavigator();
@@ -45,7 +46,7 @@ export default function MainTabs() {
       {/* 📅 Booking */}
       <Tab.Screen
         name="BookingTab"
-        component={MyBookingsScreen}
+        component={BookingsListScreen}
         options={{
           title: "Booking",
           tabBarIcon: ({ color, size }) => (
@@ -57,11 +58,23 @@ export default function MainTabs() {
       {/* 💬 Chat */}
       <Tab.Screen
         name="ChatTab"
-        component={NotificationsScreen} // temporary until Chat is built
+        component={ChatScreen}
         options={{
           title: "Chat",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbubble-ellipses-outline" size={size} color={color} />
+          ),
+        }}
+      />
+
+      {/* 👤 Profile */}
+      <Tab.Screen
+        name="ProfileTab"
+        component={ProfileScreen}
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
           ),
         }}
       />

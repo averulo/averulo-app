@@ -11,8 +11,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../hooks/useAuth";
 import { uploadKyc } from "../lib/api";
+
+const PRIMARY_BLUE = "#0094FF";
 
 export default function TakePhotoOfIDScreen({ route }) {
   const navigation = useNavigation();
@@ -24,7 +27,7 @@ export default function TakePhotoOfIDScreen({ route }) {
   const [currentStep, setCurrentStep] = useState("front");
   const [submitting, setSubmitting] = useState(false);
 
-  // ✅ open camera to capture ID
+  // Open camera to capture ID
   const openCamera = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
@@ -49,7 +52,7 @@ export default function TakePhotoOfIDScreen({ route }) {
     }
   };
 
-  // ✅ Submit both sides to backend
+  // Submit both sides to backend
   const handleSubmit = async () => {
     if (!frontPhoto || !backPhoto) {
       return Alert.alert("Missing photo", "Please capture both sides of your ID.");
@@ -66,12 +69,43 @@ export default function TakePhotoOfIDScreen({ route }) {
       console.log("✅ KYC Upload result:", result);
 
       await refreshUser();
-      Alert.alert("Success", "Your KYC has been submitted for verification!");
 
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "Home" }],
-      });
+      // If this is host onboarding, navigate to selfie screen
+      if (idType === "HOST_ID") {
+        setSubmitting(false);
+        navigation.navigate("TakePhotoOfPassport");
+      } else {
+        // Regular guest KYC - show host prompt
+        Alert.alert(
+          "Success!",
+          "Your KYC has been submitted for verification!\n\nWould you like to become a host and start earning?",
+          [
+            {
+              text: "Not Now",
+              style: "cancel",
+              onPress: () => {
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: "MainTabs" }],
+                });
+              },
+            },
+            {
+              text: "Become a Host",
+              onPress: () => {
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: "MainTabs" }],
+                });
+                // Navigate to host onboarding after a brief delay
+                setTimeout(() => {
+                  navigation.navigate("BecomeHostScreen");
+                }, 500);
+              },
+            },
+          ]
+        );
+      }
     } catch (err) {
       console.error("❌ KYC upload error:", err);
       Alert.alert("Error", err.message || "Failed to upload ID.");
@@ -80,7 +114,7 @@ export default function TakePhotoOfIDScreen({ route }) {
     }
   };
 
-  // ✅ Reset both photos
+  // Reset to front
   const handleRetake = () => {
     setFrontPhoto(null);
     setBackPhoto(null);
@@ -88,34 +122,38 @@ export default function TakePhotoOfIDScreen({ route }) {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Take a photo of your ID</Text>
-      </View>
+    <SafeAreaView style={styles.container}>
+      {/* Back Button */}
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <Ionicons name="chevron-back" size={28} color="#fff" />
+      </TouchableOpacity>
 
-      {/* Image Preview */}
+      {/* Title */}
+      <Text style={styles.title}>Take a photo of your ID</Text>
+
+      {/* Rectangular Image Preview */}
       <TouchableOpacity
         style={styles.imageWrapper}
         onPress={openCamera}
         disabled={submitting}
       >
-        <Image
-          source={
-            currentStep === "front"
-              ? frontPhoto
-                ? { uri: frontPhoto }
-                : require("../assets/images/id-card-illustration.png")
-              : backPhoto
-              ? { uri: backPhoto }
-              : require("../assets/images/id-card-illustration.png")
-          }
-          style={styles.image}
-          resizeMode="contain"
-        />
+        {currentStep === "front" ? (
+          frontPhoto ? (
+            <Image source={{ uri: frontPhoto }} style={styles.image} />
+          ) : (
+            <View style={styles.placeholder}>
+              <Ionicons name="card" size={60} color="#555" />
+              <Text style={styles.placeholderText}>Tap to capture front of ID</Text>
+            </View>
+          )
+        ) : backPhoto ? (
+          <Image source={{ uri: backPhoto }} style={styles.image} />
+        ) : (
+          <View style={styles.placeholder}>
+            <Ionicons name="card" size={60} color="#555" />
+            <Text style={styles.placeholderText}>Tap to capture back of ID</Text>
+          </View>
+        )}
       </TouchableOpacity>
 
       {/* Info Box */}
@@ -124,33 +162,32 @@ export default function TakePhotoOfIDScreen({ route }) {
           {currentStep === "front" ? "Front of ID" : "Back of ID"}
         </Text>
         <Text style={styles.infoText}>
-          Center your ID in the frame and we’ll take the photo automatically.
+          Center your ID in the frame and we'll take the photo automatically
         </Text>
       </View>
 
       {/* Retake Button */}
       {(frontPhoto || backPhoto) && !submitting && (
-        <TouchableOpacity onPress={handleRetake}>
-          <Text style={styles.retakeText}>Retake Photo(s)</Text>
+        <TouchableOpacity onPress={handleRetake} style={styles.retakeBtn}>
+          <Text style={styles.retakeText}>Retake the Photo</Text>
         </TouchableOpacity>
       )}
 
-      {/* Submit */}
-      {frontPhoto && backPhoto && (
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.submitButton, submitting && { opacity: 0.6 }]}
-            onPress={handleSubmit}
-            disabled={submitting}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.submitText}>Submit Photos</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Submit Button */}
+      <TouchableOpacity
+        style={[
+          styles.submitButton,
+          (!frontPhoto || !backPhoto || submitting) && styles.submitButtonDisabled,
+        ]}
+        onPress={handleSubmit}
+        disabled={!frontPhoto || !backPhoto || submitting}
+      >
+        {submitting ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.submitText}>Submit Photo</Text>
+        )}
+      </TouchableOpacity>
 
       {/* Uploading Overlay */}
       {submitting && (
@@ -159,35 +196,112 @@ export default function TakePhotoOfIDScreen({ route }) {
           <Text style={styles.overlayText}>Uploading your ID...</Text>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000", paddingHorizontal: 20, paddingTop: 50 },
-  header: { flexDirection: "row", alignItems: "center", marginBottom: 30 },
-  title: { color: "#fff", fontSize: 20, fontWeight: "600", marginLeft: 10 },
-  imageWrapper: { alignItems: "center", marginBottom: 20 },
-  image: {
-    width: "100%",
-    height: 200,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#1E293B",
-    backgroundColor: "#1E293B",
+  container: {
+    flex: 1,
+    backgroundColor: "#000",
+    paddingHorizontal: 20,
+    paddingTop: 10,
   },
-  infoBox: { backgroundColor: "#0F2D52", padding: 15, borderRadius: 10, marginBottom: 20 },
-  infoTitle: { color: "white", fontWeight: "600", marginBottom: 5 },
-  infoText: { color: "white", fontSize: 14 },
-  retakeText: { color: "white", fontSize: 16, textAlign: "center", marginBottom: 20 },
-  footer: { marginTop: "auto", marginBottom: 20 },
-  submitButton: { backgroundColor: "#0094FF", padding: 16, borderRadius: 8 },
-  submitText: { color: "white", fontSize: 16, fontWeight: "bold", textAlign: "center" },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.7)",
+  backBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    marginBottom: 20,
+    alignSelf: "flex-start",
+  },
+  title: {
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "600",
+    fontFamily: "Manrope-SemiBold",
+    marginBottom: 40,
+  },
+  imageWrapper: {
+    width: "100%",
+    height: 220,
+    borderRadius: 12,
+    borderWidth: 3,
+    borderColor: "#fff",
+    backgroundColor: "#1f1f1f",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+    marginBottom: 30,
+  },
+  placeholder: {
     justifyContent: "center",
     alignItems: "center",
   },
-  overlayText: { color: "#fff", fontSize: 16, marginTop: 10 },
+  placeholderText: {
+    color: "#888",
+    fontSize: 14,
+    fontFamily: "Manrope-Regular",
+    marginTop: 12,
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  infoBox: {
+    backgroundColor: "#0F3D5C",
+    padding: 16,
+    borderRadius: 10,
+    marginBottom: 24,
+  },
+  infoTitle: {
+    color: "#fff",
+    fontWeight: "600",
+    fontFamily: "Manrope-SemiBold",
+    fontSize: 15,
+    marginBottom: 6,
+  },
+  infoText: {
+    color: "#B8D4E8",
+    fontSize: 13,
+    fontFamily: "Manrope-Regular",
+    lineHeight: 18,
+  },
+  retakeBtn: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  retakeText: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: "Manrope-Medium",
+  },
+  submitButton: {
+    backgroundColor: PRIMARY_BLUE,
+    paddingVertical: 16,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: "auto",
+    marginBottom: 20,
+  },
+  submitButtonDisabled: {
+    opacity: 0.5,
+  },
+  submitText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontFamily: "Manrope-SemiBold",
+    fontSize: 16,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  overlayText: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: "Manrope-Regular",
+    marginTop: 12,
+  },
 });
