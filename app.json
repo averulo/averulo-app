@@ -52,7 +52,7 @@
     },
     "extra": {
       "router": {},
-      "apiUrl": "http://192.168.100.6:4000",
+      "apiUrl": "https://averulo-backend.onrender.com",
       "mapboxAccessToken": "pk.eyJ1IjoiYXZlcnVsbyIsImEiOiJjbWk3YmxjcHAwOHRjMmtzYm5ucG5kdXZsIn0.0AGfmRv74kWpqhnyJDXIIg",
       "eas": {
         "projectId": "e91af410-469e-4ed4-a169-34a44278e3a3"
