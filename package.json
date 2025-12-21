@@ -48,6 +48,7 @@
     "expo-web-browser": "~15.0.7",
     "express": "^5.1.0",
     "json2csv": "^6.0.0-alpha.2",
+    "mapbox-gl": "^2.15.0",
     "nodemailer": "^7.0.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
