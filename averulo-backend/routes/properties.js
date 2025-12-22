@@ -94,12 +94,9 @@ router.get("/", authOptional, async (req, res) => {
 
     if (userLat != null && userLon != null) {
       // Fetch all active properties with coordinates
+      // Note: lat/lng are required fields in schema, so no need to filter for null
       const allProperties = await prisma.property.findMany({
-        where: {
-          ...where,
-          lat: { not: null },
-          lng: { not: null },
-        },
+        where,
         select: {
           id: true, title: true, city: true, nightlyPrice: true, status: true,
           lat: true, lng: true,
