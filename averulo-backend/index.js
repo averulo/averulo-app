@@ -178,29 +178,34 @@ app.post("/api/send-otp", otpLimiter, async (req, res) => {
 
 // verify OTP
 app.post("/api/verify-otp", otpLimiter, async (req, res) => {
-  const { email, otp } = req.body;
-  if (!email || !otp) return res.status(400).json({ success: false, message: "Missing email or otp" });
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ success: false, message: "Missing email or otp" });
 
-  const rec = otpStore[email];
-  if (!rec) return res.status(400).json({ success: false, message: "No OTP found for this email" });
-  if (rec.expires < Date.now()) {
+    const rec = otpStore[email];
+    if (!rec) return res.status(400).json({ success: false, message: "No OTP found for this email" });
+    if (rec.expires < Date.now()) {
+      delete otpStore[email];
+      return res.status(400).json({ success: false, message: "OTP expired" });
+    }
+    if (rec.code !== otp) return res.status(400).json({ success: false, message: "Invalid OTP" });
+
     delete otpStore[email];
-    return res.status(400).json({ success: false, message: "OTP expired" });
+
+    let user = await prisma.user.findUnique({ where: { email } });
+    if (!user) user = await prisma.user.create({ data: { email, role: "USER" } });
+
+    const token = jwt.sign(
+      { sub: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || "dev-secret",
+      { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
+    );
+    console.log("✅ OTP Verified — token:", token);
+    return res.json({ success: true, message: "OTP Verified!", token, user });
+  } catch (err) {
+    console.error("❌ OTP verification error:", err);
+    return res.status(500).json({ success: false, message: "Failed to verify OTP", detail: err.message });
   }
-  if (rec.code !== otp) return res.status(400).json({ success: false, message: "Invalid OTP" });
-
-  delete otpStore[email];
-
-  let user = await prisma.user.findUnique({ where: { email } });
-  if (!user) user = await prisma.user.create({ data: { email, role: "USER" } });
-
-  const token = jwt.sign(
-    { sub: user.id, email: user.email, role: user.role },
-    process.env.JWT_SECRET || "dev-secret",
-    { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
-  );
-  console.log("✅ OTP Verified — token:", token);
-  return res.json({ success: true, message: "OTP Verified!", token, user });
 });
 
 app.get("/test-email", async (req, res) => {
