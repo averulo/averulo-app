@@ -7,6 +7,19 @@ import { requireRole } from "../lib/roles.js";
 
 const router = express.Router();
 
+// Haversine formula to calculate distance between two coordinates (in km)
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in km
+}
+
 // GET /api/properties/stats
 router.get("/stats", getPropertyStats);
 const authOptional = auth(false);
@@ -28,6 +41,11 @@ router.get("/", authOptional, async (req, res) => {
     const minPrice  = req.query.minPrice ? Number(req.query.minPrice) : undefined;
     const maxPrice  = req.query.maxPrice ? Number(req.query.maxPrice) : undefined;
     const minRating = req.query.minRating ? Number(req.query.minRating) : undefined;
+
+    // Location-based search params
+    const userLat = req.query.lat ? Number(req.query.lat) : null;
+    const userLon = req.query.lon ? Number(req.query.lon) : null;
+    const radius = req.query.radius ? Number(req.query.radius) : 10; // Default 10km
 
     // where
     const where = {
@@ -70,21 +88,55 @@ router.get("/", authOptional, async (req, res) => {
       faveIds = new Set(favorites.map(f => f.propertyId));
     }
 
-    const [total, itemsRaw] = await Promise.all([
-      prisma.property.count({ where }),
-      prisma.property.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy,
+    // If location search is enabled, fetch all and filter by distance
+    let itemsRaw;
+    let total;
+
+    if (userLat != null && userLon != null) {
+      // Fetch all active properties with coordinates
+      const allProperties = await prisma.property.findMany({
+        where: {
+          ...where,
+          lat: { not: null },
+          lng: { not: null },
+        },
         select: {
           id: true, title: true, city: true, nightlyPrice: true, status: true,
           lat: true, lng: true,
           avgRating: true, reviewsCount: true, favoritesCount: true,
           host: { select: { id: true, email: true, name: true } },
         },
-      }),
-    ]);
+      });
+
+      // Filter by distance and add distance field
+      const propertiesWithDistance = allProperties
+        .map(p => ({
+          ...p,
+          distance: calculateDistance(userLat, userLon, p.lat, p.lng),
+        }))
+        .filter(p => p.distance <= radius)
+        .sort((a, b) => a.distance - b.distance); // Sort by distance
+
+      total = propertiesWithDistance.length;
+      itemsRaw = propertiesWithDistance.slice(skip, skip + limit);
+    } else {
+      // Regular search without location
+      [total, itemsRaw] = await Promise.all([
+        prisma.property.count({ where }),
+        prisma.property.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy,
+          select: {
+            id: true, title: true, city: true, nightlyPrice: true, status: true,
+            lat: true, lng: true,
+            avgRating: true, reviewsCount: true, favoritesCount: true,
+            host: { select: { id: true, email: true, name: true } },
+          },
+        }),
+      ]);
+    }
 
     const items = itemsRaw.map(p => ({
       ...p,
