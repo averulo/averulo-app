@@ -140,6 +140,7 @@ const otpLimiter = rateLimit({
   limit: 20,
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  validate: { trustProxy: false }, // Disable proxy validation for testing
 });
 const otpStore = Object.create(null);
 
