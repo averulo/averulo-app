@@ -184,15 +184,26 @@ app.post("/api/send-otp", otpLimiter, async (req, res) => {
 app.post("/api/verify-otp", otpLimiter, async (req, res) => {
   try {
     const { email, otp } = req.body;
+    console.log("🔍 VERIFY REQUEST:", { email, otp, otpType: typeof otp });
+    console.log("📦 OTP STORE KEYS:", Object.keys(otpStore));
+    console.log("📦 OTP STORE FOR EMAIL:", otpStore[email]);
+
     if (!email || !otp) return res.status(400).json({ success: false, message: "Missing email or otp" });
 
     const rec = otpStore[email];
-    if (!rec) return res.status(400).json({ success: false, message: "No OTP found for this email" });
+    if (!rec) {
+      console.log("❌ No OTP found for email:", email);
+      return res.status(400).json({ success: false, message: "No OTP found for this email" });
+    }
     if (rec.expires < Date.now()) {
+      console.log("❌ OTP expired for email:", email);
       delete otpStore[email];
       return res.status(400).json({ success: false, message: "OTP expired" });
     }
-    if (rec.code !== otp) return res.status(400).json({ success: false, message: "Invalid OTP" });
+    if (rec.code !== otp) {
+      console.log("❌ OTP mismatch - Expected:", rec.code, "Got:", otp);
+      return res.status(400).json({ success: false, message: "Invalid OTP" });
+    }
 
     delete otpStore[email];
 
