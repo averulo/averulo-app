@@ -13,7 +13,7 @@ export function auth(required = true) {
     }
 
     try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET);
+      const payload = jwt.verify(token, process.env.JWT_SECRET || "dev-secret");
       // keep the whole payload; ensure .sub is present
       req.user = { ...payload, id: payload.sub };
       return next();
