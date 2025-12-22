@@ -34,6 +34,9 @@ import userRoutes from "./routes/userRoutes.js";
 const app = express();
 const PORT = process.env.PORT || 4000;
 const isDev = process.env.NODE_ENV !== "production";
+
+// Trust Render's proxy headers for rate limiting
+app.set('trust proxy', true);
 /* ── DEV HELPERS (only in non-prod) ─────────────────────────────────────── */
 if (isDev) {
   app.get("/__dev/secret-meta", (_req, res) => {
