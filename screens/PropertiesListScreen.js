@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { API_BASE } from "../lib/api";
 import {
   ActivityIndicator,
+  FlatList,
   Image,
   ScrollView,
   StyleSheet,
@@ -157,22 +158,18 @@ export default function PropertiesListScreen() {
       </View>
 
       {/* MAIN SCROLL CONTENT */}
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {loading && (
-          <ActivityIndicator
-            size="large"
-            color={PRIMARY_PURPLE}
-            style={{ marginTop: 40 }}
-          />
-        )}
-
-        {!loading &&
-          properties.map((hotel) => (
+      {loading ? (
+        <ActivityIndicator
+          size="large"
+          color={PRIMARY_PURPLE}
+          style={{ marginTop: 40 }}
+        />
+      ) : (
+        <FlatList
+          data={properties}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item: hotel }) => (
             <TouchableOpacity
-              key={hotel.id}
               style={styles.card}
               activeOpacity={0.9}
               onPress={() =>
@@ -248,11 +245,12 @@ export default function PropertiesListScreen() {
                 </View>
               </View>
             </TouchableOpacity>
-          ))}
-
-        {/* extra bottom space so it doesn’t clash with tab bar */}
-        <View style={{ height: 32 }} />
-      </ScrollView>
+          )}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 32 }}
+          style={styles.content}
+        />
+      )}
     </SafeAreaView>
   );
 }
