@@ -153,7 +153,21 @@ export default function HomeScreen() {
         {/* ─────────── YOUR MATCHES ─────────── */}
         <Text style={styles.sectionTitle}>Your Matches</Text>
 
-        <View style={styles.matchCard}>
+        <TouchableOpacity
+          style={styles.matchCard}
+          activeOpacity={0.8}
+          onPress={() =>
+            navigation.navigate("PropertyDetailsScreen", {
+              property: {
+                id: "match-1",
+                name: "King Hotel, Nigeria",
+                image: "https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg",
+                price: "₦704,653",
+                rating: 9.0,
+              },
+            })
+          }
+        >
           <Image
             source={{ uri: "https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg" }}
             style={styles.matchImg}
@@ -174,10 +188,10 @@ export default function HomeScreen() {
             <Text style={styles.feeText}>included taxes and fees</Text>
           </View>
 
-          <TouchableOpacity style={styles.viewNowBtn}>
+          <View style={styles.viewNowBtn}>
             <Text style={styles.viewNowText}>View Now</Text>
-          </TouchableOpacity>
-        </View>
+          </View>
+        </TouchableOpacity>
 
         {/* ─────────── MOST POPULAR HOTELS ─────────── */}
         <Text style={styles.sectionTitle}>Most popular hotels</Text>
@@ -187,11 +201,33 @@ export default function HomeScreen() {
             image="https://images.pexels.com/photos/271639/pexels-photo-271639.jpeg"
             title="King Hotel, Nigeria"
             price="₦704,653"
+            onPress={() =>
+              navigation.navigate("PropertyDetailsScreen", {
+                property: {
+                  id: "popular-1",
+                  name: "King Hotel, Nigeria",
+                  image: "https://images.pexels.com/photos/271639/pexels-photo-271639.jpeg",
+                  price: "₦704,653",
+                  rating: 9.0,
+                },
+              })
+            }
           />
           <PopularCard
             image="https://images.pexels.com/photos/261187/pexels-photo-261187.jpeg"
             title="King Hotel, Nigeria"
             price="₦704,653"
+            onPress={() =>
+              navigation.navigate("PropertyDetailsScreen", {
+                property: {
+                  id: "popular-2",
+                  name: "King Hotel, Nigeria",
+                  image: "https://images.pexels.com/photos/261187/pexels-photo-261187.jpeg",
+                  price: "₦704,653",
+                  rating: 9.0,
+                },
+              })
+            }
           />
         </View>
 
@@ -247,13 +283,13 @@ function ProfileRow({ label, red }) {
   );
 }
 
-function PopularCard({ title, price, image }) {
+function PopularCard({ title, price, image, onPress }) {
   return (
-    <View style={styles.popularCard}>
+    <TouchableOpacity style={styles.popularCard} activeOpacity={0.8} onPress={onPress}>
       <Image source={{ uri: image }} style={styles.popularImg} />
       <Text style={styles.popularTitle}>{title}</Text>
       <Text style={styles.popularPrice}>{price}</Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
