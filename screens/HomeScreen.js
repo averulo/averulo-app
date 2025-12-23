@@ -234,22 +234,72 @@ export default function HomeScreen() {
         {/* ─────────── FEATURED DEALS ─────────── */}
         <Text style={styles.sectionTitle}>Featured Deals and Promotions</Text>
 
-        <View style={styles.featuredCard}>
+        <TouchableOpacity
+          style={styles.featuredCard}
+          activeOpacity={0.8}
+          onPress={() =>
+            navigation.navigate("PropertyDetailsScreen", {
+              property: {
+                id: "featured-1",
+                name: "Lugar de grande 510",
+                image: "https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg",
+                price: "₦644,653",
+                rating: 9.0,
+              },
+            })
+          }
+        >
           <Image
             source={{ uri: "https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg" }}
             style={styles.featuredImg}
           />
           <Text style={styles.featuredTitle}>Lugar de grande 510</Text>
           <Text style={styles.featuredPrice}>₦644,653</Text>
-        </View>
+        </TouchableOpacity>
 
         {/* ─────────── BUSINESS TRAVELERS ─────────── */}
         <Text style={styles.sectionTitle}>Business Travelers</Text>
 
         <View style={styles.businessRow}>
-          <BusinessCard />
-          <BusinessCard />
-          <BusinessCard />
+          <BusinessCard
+            onPress={() =>
+              navigation.navigate("PropertyDetailsScreen", {
+                property: {
+                  id: "business-1",
+                  name: "King House",
+                  image: "https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg",
+                  price: "₦704,653",
+                  rating: 9.0,
+                },
+              })
+            }
+          />
+          <BusinessCard
+            onPress={() =>
+              navigation.navigate("PropertyDetailsScreen", {
+                property: {
+                  id: "business-2",
+                  name: "King House",
+                  image: "https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg",
+                  price: "₦704,653",
+                  rating: 9.0,
+                },
+              })
+            }
+          />
+          <BusinessCard
+            onPress={() =>
+              navigation.navigate("PropertyDetailsScreen", {
+                property: {
+                  id: "business-3",
+                  name: "King House",
+                  image: "https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg",
+                  price: "₦704,653",
+                  rating: 9.0,
+                },
+              })
+            }
+          />
         </View>
 
       </ScrollView>
@@ -293,16 +343,16 @@ function PopularCard({ title, price, image, onPress }) {
   );
 }
 
-function BusinessCard() {
+function BusinessCard({ onPress }) {
   return (
-    <View style={styles.businessCard}>
+    <TouchableOpacity style={styles.businessCard} activeOpacity={0.8} onPress={onPress}>
       <Image
         source={{ uri: "https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg" }}
         style={styles.businessImg}
       />
       <Text style={styles.businessTitle}>King House</Text>
       <Text style={styles.businessPrice}>₦704,653</Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
