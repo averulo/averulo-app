@@ -16,6 +16,21 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import Constants from "expo-constants";
+
+// Conditionally import Mapbox
+let Mapbox = null;
+let MAPBOX_AVAILABLE = false;
+try {
+  Mapbox = require("@rnmapbox/maps").default;
+  const MAPBOX_TOKEN = Constants.expoConfig?.extra?.mapboxAccessToken;
+  if (MAPBOX_TOKEN && MAPBOX_TOKEN !== "YOUR_MAPBOX_TOKEN_HERE") {
+    Mapbox.setAccessToken(MAPBOX_TOKEN);
+    MAPBOX_AVAILABLE = true;
+  }
+} catch (err) {
+  console.log("⚠️ Mapbox not available - using fallback for host property creation");
+}
 
 const PRIMARY_DARK = "#04123C";
 const TEXT_DARK = "#111827";
@@ -72,6 +87,8 @@ export default function CreatePropertyScreen() {
   const [website, setWebsite] = useState("");
   const [hotelType, setHotelType] = useState("");
   const [location, setLocation] = useState("");
+  const [latitude, setLatitude] = useState(6.5244); // Default: Lagos
+  const [longitude, setLongitude] = useState(3.3792);
   const [selectedAmenities, setSelectedAmenities] = useState([]);
   const [focusedField, setFocusedField] = useState("");
 
@@ -521,14 +538,54 @@ export default function CreatePropertyScreen() {
             <>
               <Text style={styles.question}>Where's your hotel located</Text>
 
-              {/* Map Placeholder */}
-              <View style={styles.mapPlaceholder}>
-                <Ionicons name="location" size={48} color={PRIMARY_DARK} />
-                <Text style={styles.mapPlaceholderText}>Map view coming soon</Text>
-              </View>
+              {/* Interactive Map */}
+              {MAPBOX_AVAILABLE && Mapbox ? (
+                <View style={styles.mapContainer}>
+                  <Mapbox.MapView
+                    style={styles.mapView}
+                    styleURL={Mapbox.StyleURL.Street}
+                    zoomEnabled={true}
+                    scrollEnabled={true}
+                    pitchEnabled={false}
+                    rotateEnabled={false}
+                    onPress={(feature) => {
+                      if (feature.geometry?.coordinates) {
+                        const [lng, lat] = feature.geometry.coordinates;
+                        setLatitude(lat);
+                        setLongitude(lng);
+                      }
+                    }}
+                  >
+                    <Mapbox.Camera
+                      zoomLevel={12}
+                      centerCoordinate={[longitude, latitude]}
+                      animationMode="flyTo"
+                      animationDuration={1000}
+                    />
+                    <Mapbox.PointAnnotation
+                      id="property-location"
+                      coordinate={[longitude, latitude]}
+                    >
+                      <View style={styles.mapMarker}>
+                        <Ionicons name="location" size={32} color="#FFFFFF" />
+                      </View>
+                    </Mapbox.PointAnnotation>
+                  </Mapbox.MapView>
+                  <Text style={styles.mapHint}>
+                    Tap on the map to set your property location
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.mapPlaceholder}>
+                  <Ionicons name="location" size={48} color={PRIMARY_DARK} />
+                  <Text style={styles.mapPlaceholderText}>
+                    Interactive map available in production build
+                  </Text>
+                </View>
+              )}
 
               {/* Address Input */}
-              <Text style={styles.label}>Hotel Address</Text>
+              <Text style={styles.label}>Location</Text>
               <TextInput
                 style={[
                   styles.contactInput,
@@ -538,16 +595,16 @@ export default function CreatePropertyScreen() {
                 onChangeText={setLocation}
                 onFocus={() => setFocusedField("location")}
                 onBlur={() => setFocusedField("")}
-                placeholder="Enter full address"
+                placeholder="Enter your address"
                 placeholderTextColor="#aaa"
                 multiline
-                numberOfLines={3}
+                numberOfLines={2}
               />
             </>
           ) : step === 7 ? (
             // Step 7: Amenities
             <>
-              <Text style={styles.question}>Select Amenities</Text>
+              <Text style={styles.question}>What amenities do you have</Text>
               <View style={styles.amenitiesList}>
                 {AMENITIES.map((amenity) => (
                   <TouchableOpacity
@@ -1233,6 +1290,43 @@ const styles = StyleSheet.create({
   },
 
   // Step 6: Location
+  mapContainer: {
+    width: "100%",
+    marginBottom: 16,
+  },
+
+  mapView: {
+    width: "100%",
+    height: 250,
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+
+  mapMarker: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: PRIMARY_DARK,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+
+  mapHint: {
+    fontSize: 12,
+    fontFamily: "Manrope",
+    color: TEXT_MEDIUM,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+
   mapPlaceholder: {
     width: "100%",
     height: 200,
@@ -1250,6 +1344,8 @@ const styles = StyleSheet.create({
     fontFamily: "Manrope-Medium",
     color: TEXT_MEDIUM,
     marginTop: 12,
+    textAlign: "center",
+    paddingHorizontal: 20,
   },
 
   // Step 7: Amenities
