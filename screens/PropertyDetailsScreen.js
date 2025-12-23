@@ -6,6 +6,8 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -374,14 +376,32 @@ export default function PropertyDetailsScreen() {
                   </Mapbox.MapView>
                 </View>
               ) : (
-                <Image
-                  source={{
-                    uri:
-                      prop.mapImage ||
-                      "https://images.pexels.com/photos/1117452/pexels-photo-1117452.jpeg",
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    const lat = prop.latitude || prop.lat || 6.5244;
+                    const lng = prop.longitude || prop.lng || 3.3792;
+                    const label = encodeURIComponent(prop.title || title);
+                    const url = Platform.select({
+                      ios: `maps:0,0?q=${label}@${lat},${lng}`,
+                      android: `geo:0,0?q=${lat},${lng}(${label})`,
+                    });
+                    Linking.openURL(url);
                   }}
-                  style={styles.mapImage}
-                />
+                >
+                  <Image
+                    source={{
+                      uri:
+                        prop.mapImage ||
+                        "https://images.pexels.com/photos/1117452/pexels-photo-1117452.jpeg",
+                    }}
+                    style={styles.mapImage}
+                  />
+                  <View style={styles.mapOverlay}>
+                    <Ionicons name="navigate-circle" size={32} color="#FFFFFF" />
+                    <Text style={styles.mapOverlayText}>Open in Maps</Text>
+                  </View>
+                </TouchableOpacity>
               )}
 
               <Text style={styles.mapAddress}>
@@ -743,6 +763,24 @@ const styles = StyleSheet.create({
     borderRadius: CARD_RADIUS,
     marginBottom: 8,
     backgroundColor: BG_GRAY,
+  },
+  mapOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    borderRadius: CARD_RADIUS,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 8,
+  },
+  mapOverlayText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+    fontFamily: "Manrope",
   },
   mapAddress: {
     fontSize: 12,
