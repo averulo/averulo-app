@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
+    FlatList,
     Image,
     ScrollView,
     StyleSheet,
@@ -110,55 +111,59 @@ export default function ExploreHomeScreen() {
           </View>
         ) : (
           <View style={styles.listWrapper}>
-            {properties.map((p) => (
-              <TouchableOpacity
-                key={p.id}
-                style={styles.card}
-                activeOpacity={0.85}
-                onPress={() => handleOpenDetails(p)}
-              >
-                <View style={styles.cardImageWrap}>
-                  <Image
-                    source={{
-                      uri:
-                        p.images?.[0]?.url ||
-                        "https://images.pexels.com/photos/271639/pexels-photo-271639.jpeg",
-                    }}
-                    style={styles.cardImage}
-                  />
-                  <View style={styles.ratingBadge}>
-                    <Text style={styles.ratingBadgeText}>
-                      {p.avgRating?.toFixed(1) || "9.0"}
-                    </Text>
+            <FlatList
+              data={properties}
+              keyExtractor={(item) => item.id}
+              scrollEnabled={false}
+              renderItem={({ item: p }) => (
+                <TouchableOpacity
+                  style={styles.card}
+                  activeOpacity={0.85}
+                  onPress={() => handleOpenDetails(p)}
+                >
+                  <View style={styles.cardImageWrap}>
+                    <Image
+                      source={{
+                        uri:
+                          p.images?.[0]?.url ||
+                          "https://images.pexels.com/photos/271639/pexels-photo-271639.jpeg",
+                      }}
+                      style={styles.cardImage}
+                    />
+                    <View style={styles.ratingBadge}>
+                      <Text style={styles.ratingBadgeText}>
+                        {p.avgRating?.toFixed(1) || "9.0"}
+                      </Text>
+                    </View>
                   </View>
-                </View>
 
-                <View style={styles.cardContent}>
-                  <Text style={styles.cardTitle} numberOfLines={2}>
-                    {p.title || "King Hotel, Nigeria"}
-                  </Text>
-                  <Text style={styles.cardLocation} numberOfLines={1}>
-                    {p.city || "Lagos"}, {p.country || "Nigeria"}
-                  </Text>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardTitle} numberOfLines={2}>
+                      {p.title || "King Hotel, Nigeria"}
+                    </Text>
+                    <Text style={styles.cardLocation} numberOfLines={1}>
+                      {p.city || "Lagos"}, {p.country || "Nigeria"}
+                    </Text>
 
-                  <Text style={styles.cardPrice}>
-                    ₦{(p.price || 644653).toLocaleString()}
-                    <Text style={styles.perNight}> / night</Text>
-                  </Text>
+                    <Text style={styles.cardPrice}>
+                      ₦{(p.price || 644653).toLocaleString()}
+                      <Text style={styles.perNight}> / night</Text>
+                    </Text>
 
-                  <Text style={styles.taxesText}>
-                    included taxes and fees
-                  </Text>
+                    <Text style={styles.taxesText}>
+                      included taxes and fees
+                    </Text>
 
-                  <TouchableOpacity
-                    style={styles.viewBtn}
-                    onPress={() => handleOpenDetails(p)}
-                  >
-                    <Text style={styles.viewBtnText}>View</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            ))}
+                    <TouchableOpacity
+                      style={styles.viewBtn}
+                      onPress={() => handleOpenDetails(p)}
+                    >
+                      <Text style={styles.viewBtnText}>View</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
           </View>
         )}
       </ScrollView>
