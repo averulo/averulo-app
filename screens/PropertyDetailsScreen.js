@@ -432,7 +432,16 @@ export default function PropertyDetailsScreen() {
                   Request accepted within 15min
                 </Text>
 
-                <TouchableOpacity style={styles.contactBtn}>
+                <TouchableOpacity
+                  style={styles.contactBtn}
+                  onPress={() =>
+                    navigation.navigate("ChatDetailScreen", {
+                      conversationId: `property-${prop.id || id}`,
+                      name: prop.host?.name || title,
+                      avatar: prop.host?.avatar || null,
+                    })
+                  }
+                >
                   <Text style={styles.contactBtnText}>Contact the Hotel</Text>
                 </TouchableOpacity>
               </View>
