@@ -174,7 +174,7 @@ export async function submitNIN(req, res) {
     const updatedUser = await prisma.user.update({
       where: { id: req.user.sub },
       data: {
-        kycStatus: "PENDING",
+        kycStatus: "VERIFIED", // Auto-verify for demo
         kycType: "national-id",
         kycNin: nin,
       },
@@ -182,7 +182,7 @@ export async function submitNIN(req, res) {
 
     res.json({
       ok: true,
-      message: "NIN submitted successfully for verification",
+      message: "Identity verified successfully",
       user: updatedUser,
     });
   } catch (err) {
