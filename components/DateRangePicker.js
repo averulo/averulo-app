@@ -131,7 +131,10 @@ export default function DateRangePicker({ checkIn, checkOut, onDatesChange }) {
       <View style={styles.dateFieldsContainer}>
         <TouchableOpacity
           style={styles.dateField}
-          onPress={() => setModalVisible(true)}
+          onPress={() => {
+            setSelectingCheckOut(false); // Start with check-in selection
+            setModalVisible(true);
+          }}
         >
           <View style={styles.dateFieldContent}>
             <Ionicons name="calendar-outline" size={20} color={TEXT_MEDIUM} />
@@ -150,7 +153,14 @@ export default function DateRangePicker({ checkIn, checkOut, onDatesChange }) {
 
         <TouchableOpacity
           style={styles.dateField}
-          onPress={() => setModalVisible(true)}
+          onPress={() => {
+            if (checkIn) {
+              setSelectingCheckOut(true); // Go directly to check-out if check-in exists
+            } else {
+              setSelectingCheckOut(false);
+            }
+            setModalVisible(true);
+          }}
         >
           <View style={styles.dateFieldContent}>
             <Ionicons name="calendar-outline" size={20} color={TEXT_MEDIUM} />
