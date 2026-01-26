@@ -133,11 +133,12 @@ model Review {
 }
 
 model Booking {
-  id        String        @id @default(cuid())
-  startDate DateTime
-  endDate   DateTime
-  status    BookingStatus @default(PENDING)
-  createdAt DateTime      @default(now())
+  id          String        @id @default(cuid())
+  bookingCode String?
+  startDate   DateTime
+  endDate     DateTime
+  status      BookingStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
 
   feesJson    Json?
   totalAmount Int?
