@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Button, Image, StyleSheet, Text, View } from 'react-native';
+import { API_BASE } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 
 export default function SubmitPhotoScreen({ route, navigation }) {
@@ -12,19 +13,19 @@ export default function SubmitPhotoScreen({ route, navigation }) {
       setSubmitting(true);
 
       const form = new FormData();
-      form.append('front', {
+      form.append('frontImage', {
         uri: frontPhoto,
         name: 'front.jpg',
         type: 'image/jpeg',
       });
-      form.append('back', {
+      form.append('backImage', {
         uri: backPhoto,
         name: 'back.jpg',
         type: 'image/jpeg',
       });
       form.append('idType', idType);
 
-      const res = await fetch(`${process.env.EXPO_PUBLIC_API_BASE}/api/kyc/upload`, {
+      const res = await fetch(`${API_BASE}/api/users/kyc/upload`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

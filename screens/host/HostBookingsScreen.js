@@ -1,7 +1,9 @@
 // screens/host/HostBookingsScreen.js
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useState, useCallback } from "react";
 import {
+  ActivityIndicator,
   Image,
   ScrollView,
   StyleSheet,
@@ -10,6 +12,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "../../hooks/useAuth";
+import { API_BASE } from "../../lib/api";
 
 const PRIMARY_DARK = "#04123C";
 const TEXT_DARK = "#1F2937";
@@ -20,99 +24,96 @@ const BG_LIGHT = "#F9FAFB";
 
 export default function HostBookingsScreen() {
   const navigation = useNavigation();
+  const { token } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [bookings, setBookings] = useState([]);
 
-  const pendingBookings = [
-    {
-      id: 1,
-      name: "Dr. Jane Okoro",
-      phone: "07012345678",
-      dates: "10/12/2024 - 15/6/2024",
-      price: "$644,653",
-      image: "https://i.pravatar.cc/150?img=5",
-    },
-    {
-      id: 2,
-      name: "Dr. Jane Okoro",
-      phone: "07012345678",
-      dates: "10/12/2024 - 15/6/2024",
-      price: "$644,653",
-      image: "https://i.pravatar.cc/150?img=5",
-    },
-  ];
-
-  const approvedBookings = [
-    {
-      id: 3,
-      name: "Dr. Jane Okoro",
-      phone: "07012345678",
-      dates: "10/12/2024 - 15/6/2024",
-      price: "$644,653",
-      image: "https://i.pravatar.cc/150?img=5",
-    },
-    {
-      id: 4,
-      name: "Dr. Jane Okoro",
-      phone: "07012345678",
-      dates: "10/12/2024 - 15/6/2024",
-      price: "$644,653",
-      image: "https://i.pravatar.cc/150?img=5",
-    },
-    {
-      id: 5,
-      name: "Dr. Jane Okoro",
-      phone: "07012345678",
-      dates: "10/12/2024 - 15/6/2024",
-      price: "$644,653",
-      image: "https://i.pravatar.cc/150?img=5",
-    },
-  ];
-
-  const rejectedBookings = [
-    {
-      id: 6,
-      name: "Dr. Jane Okoro",
-      phone: "07012345678",
-      dates: "10/12/2024 - 15/6/2024",
-      price: "$644,653",
-      image: "https://i.pravatar.cc/150?img=5",
-    },
-  ];
-
-  const BookingCard = ({ booking, isPending }) => (
-    <TouchableOpacity
-      style={styles.bookingCard}
-      onPress={() => {
-        if (isPending) {
-          navigation.navigate("HostBookingRequestScreen", {
-            guestName: booking.name,
-            checkIn: booking.dates.split(" - ")[0],
-            checkOut: booking.dates.split(" - ")[1],
-            roomType: "Deluxe King Room",
-            paymentStatus: "Pending Confirmation",
-            roomImage: booking.image,
-          });
-        }
-      }}
-      activeOpacity={isPending ? 0.7 : 1}
-    >
-      <View style={styles.bookingImageContainer}>
-        <Image source={{ uri: booking.image }} style={styles.bookingImage} />
-        <View style={styles.redFlag} />
-      </View>
-      <View style={styles.bookingInfo}>
-        <Text style={styles.bookingName}>{booking.name}</Text>
-        <View style={styles.bookingDetail}>
-          <Ionicons name="call-outline" size={14} color={TEXT_MEDIUM} />
-          <Text style={styles.bookingText}>{booking.phone}</Text>
-        </View>
-        <View style={styles.bookingDetail}>
-          <Ionicons name="calendar-outline" size={14} color={TEXT_MEDIUM} />
-          <Text style={styles.bookingText}>{booking.dates}</Text>
-        </View>
-      </View>
-      <Text style={styles.bookingPrice}>{booking.price}</Text>
-    </TouchableOpacity>
+  useFocusEffect(
+    useCallback(() => {
+      fetchBookings();
+    }, [token])
   );
+
+  const fetchBookings = async () => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/bookings/host`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setBookings(data || []);
+      }
+    } catch (err) {
+      console.log("Fetch bookings error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Group bookings by status
+  const pendingBookings = bookings.filter(b => b.status === 'PENDING');
+  const approvedBookings = bookings.filter(b => b.status === 'APPROVED');
+  const rejectedBookings = bookings.filter(b => b.status === 'REJECTED' || b.status === 'CANCELLED');
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+  };
+
+  const BookingCard = ({ booking, isPending }) => {
+    const guestName = booking.guest?.name || booking.guest?.email || "Guest";
+    const guestPhone = booking.guest?.phone || "";
+    const dates = `${formatDate(booking.startDate)} - ${formatDate(booking.endDate)}`;
+    const price = booking.totalAmount ? `₦${(booking.totalAmount / 100).toLocaleString()}` : "₦0";
+    const guestImage = `https://i.pravatar.cc/150?u=${booking.guestId}`;
+
+    return (
+      <TouchableOpacity
+        style={styles.bookingCard}
+        onPress={() => {
+          if (isPending) {
+            navigation.navigate("HostBookingRequestScreen", {
+              bookingId: booking.id,
+              guestName,
+              checkIn: formatDate(booking.startDate),
+              checkOut: formatDate(booking.endDate),
+              roomType: booking.property?.title || "Room",
+              paymentStatus: "Pending Confirmation",
+              roomImage: booking.property?.images?.[0]?.url || guestImage,
+            });
+          }
+        }}
+        activeOpacity={isPending ? 0.7 : 1}
+      >
+        <View style={styles.bookingImageContainer}>
+          <Image source={{ uri: guestImage }} style={styles.bookingImage} />
+          {isPending && <View style={styles.redFlag} />}
+        </View>
+        <View style={styles.bookingInfo}>
+          <Text style={styles.bookingName}>{guestName}</Text>
+          {guestPhone ? (
+            <View style={styles.bookingDetail}>
+              <Ionicons name="call-outline" size={14} color={TEXT_MEDIUM} />
+              <Text style={styles.bookingText}>{guestPhone}</Text>
+            </View>
+          ) : null}
+          <View style={styles.bookingDetail}>
+            <Ionicons name="calendar-outline" size={14} color={TEXT_MEDIUM} />
+            <Text style={styles.bookingText}>{dates}</Text>
+          </View>
+        </View>
+        <Text style={styles.bookingPrice}>{price}</Text>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -140,26 +141,53 @@ export default function HostBookingsScreen() {
         {/* Title Row */}
         <View style={styles.titleRow}>
           <Text style={styles.pageTitle}>Bookings</Text>
-          <Text style={styles.hotelSelector}>Sunset Hotel</Text>
+          <Text style={styles.hotelSelector}>{bookings.length} total</Text>
         </View>
 
-        {/* Pending Section */}
-        <Text style={styles.sectionTitle}>Pending</Text>
-        {pendingBookings.map((booking) => (
-          <BookingCard key={booking.id} booking={booking} isPending={true} />
-        ))}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={PRIMARY_DARK} />
+            <Text style={styles.loadingText}>Loading bookings...</Text>
+          </View>
+        ) : bookings.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="calendar-outline" size={60} color={TEXT_MEDIUM} />
+            <Text style={styles.emptyText}>No bookings yet</Text>
+            <Text style={styles.emptySubtext}>When guests book your property, they'll appear here</Text>
+          </View>
+        ) : (
+          <>
+            {/* Pending Section */}
+            {pendingBookings.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Pending ({pendingBookings.length})</Text>
+                {pendingBookings.map((booking) => (
+                  <BookingCard key={booking.id} booking={booking} isPending={true} />
+                ))}
+              </>
+            )}
 
-        {/* Approved Section */}
-        <Text style={styles.sectionTitle}>Approved</Text>
-        {approvedBookings.map((booking) => (
-          <BookingCard key={booking.id} booking={booking} isPending={false} />
-        ))}
+            {/* Approved Section */}
+            {approvedBookings.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Approved ({approvedBookings.length})</Text>
+                {approvedBookings.map((booking) => (
+                  <BookingCard key={booking.id} booking={booking} isPending={false} />
+                ))}
+              </>
+            )}
 
-        {/* Rejected Section */}
-        <Text style={styles.sectionTitle}>Rejected</Text>
-        {rejectedBookings.map((booking) => (
-          <BookingCard key={booking.id} booking={booking} isPending={false} />
-        ))}
+            {/* Rejected/Cancelled Section */}
+            {rejectedBookings.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Cancelled ({rejectedBookings.length})</Text>
+                {rejectedBookings.map((booking) => (
+                  <BookingCard key={booking.id} booking={booking} isPending={false} />
+                ))}
+              </>
+            )}
+          </>
+        )}
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -342,5 +370,34 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Manrope-Regular",
     color: TEXT_MEDIUM,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontFamily: "Manrope-Regular",
+    color: TEXT_MEDIUM,
+    marginTop: 12,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: "600",
+    fontFamily: "Manrope-SemiBold",
+    color: TEXT_DARK,
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    fontFamily: "Manrope-Regular",
+    color: TEXT_MEDIUM,
+    marginTop: 8,
+    textAlign: "center",
   },
 });

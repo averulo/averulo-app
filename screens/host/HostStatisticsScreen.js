@@ -1,8 +1,9 @@
 // screens/host/HostStatisticsScreen.js
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import { useState } from "react";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useState, useCallback } from "react";
 import {
+  ActivityIndicator,
   Image,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,9 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Svg, { Circle } from "react-native-svg";
+import { useAuth } from "../../hooks/useAuth";
+import { API_BASE } from "../../lib/api";
 
 const PRIMARY_DARK = "#04123C";
 const TEXT_DARK = "#1F2937";
@@ -21,7 +25,59 @@ const BG_LIGHT = "#F9FAFB";
 
 export default function HostStatisticsScreen() {
   const navigation = useNavigation();
-  const [selectedTab, setSelectedTab] = useState("reviews");
+  const { token } = useAuth();
+  const [selectedTab, setSelectedTab] = useState("stats");
+  const [loading, setLoading] = useState(true);
+  const [bookings, setBookings] = useState([]);
+  const [properties, setProperties] = useState([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [token])
+  );
+
+  const fetchData = async () => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const [bookingsRes, propsRes] = await Promise.all([
+        fetch(`${API_BASE}/api/bookings/host`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API_BASE}/api/properties`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      if (bookingsRes.ok) {
+        const data = await bookingsRes.json();
+        setBookings(data || []);
+      }
+      if (propsRes.ok) {
+        const data = await propsRes.json();
+        setProperties(data.data || data || []);
+      }
+    } catch (err) {
+      console.log("Fetch stats error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate stats from bookings
+  const totalEarnings = bookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0) / 100;
+  const approvedBookings = bookings.filter(b => b.status === 'APPROVED').length;
+  const totalBookings = bookings.length;
+  const occupancyRate = totalBookings > 0 ? Math.min(100, Math.round((approvedBookings / Math.max(totalBookings, 1)) * 100)) : 0;
+
+  // Get current month name
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const currentMonth = monthNames[new Date().getMonth()];
 
   const opportunities = [
     {
@@ -38,35 +94,16 @@ export default function HostStatisticsScreen() {
     },
   ];
 
-  const reviews = [
-    {
-      id: 1,
-      name: "Jane Doe",
-      room: "Deluxe Double Room • 3 nights",
-      rating: 5,
-      text: "Amazing experience from start to finish! Booking through Averulo was effortless, and the deluxe room was absolutely perfect - spacious, clean, and beautifully decorated. The hotel staff were incredibly welcoming, the amenities exceeded expectations, and the location was ideal. Both the app and hotel provided exceptional service throughout my stay. Already planning my next trip and will definitely book through Averulo again. Highly recommend!",
-      date: "24/9/25",
-      image: "https://i.pravatar.cc/150?img=5",
-    },
-    {
-      id: 2,
-      name: "Jane Doe",
-      room: "Deluxe Double Room • 3 nights",
-      rating: 4,
-      text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.",
-      date: "24/9/25",
-      image: "https://i.pravatar.cc/150?img=5",
-    },
-    {
-      id: 3,
-      name: "Jane Doe",
-      room: "Deluxe Double Room • 3 nights",
-      rating: 4,
-      text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-      date: "24/9/25",
-      image: "https://i.pravatar.cc/150?img=5",
-    },
-  ];
+  // Generate reviews from bookings (placeholder - would need review API)
+  const reviews = bookings.slice(0, 3).map((b, i) => ({
+    id: b.id,
+    name: b.guest?.name || b.guest?.email || "Guest",
+    room: `${b.property?.title || "Room"} • ${Math.ceil((new Date(b.endDate) - new Date(b.startDate)) / (1000 * 60 * 60 * 24))} nights`,
+    rating: 4 + (i % 2),
+    text: "Great stay! The property was exactly as described and the host was very responsive.",
+    date: new Date(b.createdAt).toLocaleDateString(),
+    image: `https://i.pravatar.cc/150?u=${b.guestId}`,
+  }));
 
   return (
     <SafeAreaView style={styles.container}>
@@ -77,11 +114,17 @@ export default function HostStatisticsScreen() {
           <Text style={styles.headerTitle}>Averulo limited</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconButton}>
-            <Ionicons name="share-outline" size={22} color={TEXT_DARK} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
-            <Ionicons name="ellipsis-horizontal" size={22} color={TEXT_DARK} />
+          <TouchableOpacity
+            style={styles.switchButton}
+            onPress={() => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainTabs' }],
+              });
+            }}
+          >
+            <Ionicons name="swap-horizontal" size={22} color={PRIMARY_DARK} />
+            <Text style={styles.switchButtonText}>Switch to Guest</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -94,7 +137,7 @@ export default function HostStatisticsScreen() {
         {/* Title and Hotel Selector */}
         <View style={styles.titleRow}>
           <Text style={styles.pageTitle}>Statistic</Text>
-          <Text style={styles.hotelSelector}>Sunset Hotel</Text>
+          <Text style={styles.hotelSelector}>{properties[0]?.title || "My Property"}</Text>
         </View>
 
         {/* Tabs */}
@@ -176,54 +219,88 @@ export default function HostStatisticsScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Occupancy Chart */}
-            <View style={styles.chartContainer}>
-              <View style={styles.chartBackground}>
-                <View style={styles.chartFill} />
+            {loading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={PRIMARY_DARK} />
+                <Text style={styles.loadingText}>Loading statistics...</Text>
               </View>
-              <View style={styles.chartTextContainer}>
-                <Text style={styles.chartPercentage}>75%</Text>
-                <Text style={styles.chartLabel}>Occupancy</Text>
-              </View>
-            </View>
-
-            {/* Stats Row */}
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>3★</Text>
-                <Text style={styles.statLabel}>Overall rating</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>3</Text>
-                <Text style={styles.statLabel}>Review</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>1hrs</Text>
-                <Text style={styles.statLabel}>Response rate</Text>
-              </View>
-            </View>
-
-            {/* Financial Section */}
-            <View style={styles.financialSection}>
-              <View style={styles.financialRow}>
-                <View style={styles.financialItem}>
-                  <Text style={styles.financialAmount}>$644,653</Text>
-                  <Text style={styles.financialLabel}>September earnings</Text>
+            ) : (
+              <>
+                {/* Occupancy Chart - SVG Circle */}
+                <View style={styles.chartContainer}>
+                  <View style={styles.svgChartWrapper}>
+                    <Svg width="220" height="220" viewBox="0 0 220 220">
+                      {/* Background circle (light blue) */}
+                      <Circle
+                        cx="110"
+                        cy="110"
+                        r="96"
+                        stroke="#E0F2FE"
+                        strokeWidth="28"
+                        fill="none"
+                      />
+                      {/* Progress circle (dark blue) */}
+                      <Circle
+                        cx="110"
+                        cy="110"
+                        r="96"
+                        stroke="#3B82F6"
+                        strokeWidth="28"
+                        fill="none"
+                        strokeDasharray={`${2 * Math.PI * 96 * (occupancyRate / 100)} ${2 * Math.PI * 96}`}
+                        strokeDashoffset="0"
+                        rotation="-90"
+                        origin="110, 110"
+                        strokeLinecap="round"
+                      />
+                    </Svg>
+                    {/* Center text */}
+                    <View style={styles.svgChartText}>
+                      <Text style={styles.chartPercentage}>{occupancyRate}%</Text>
+                      <Text style={styles.chartLabel}>Occupancy</Text>
+                    </View>
+                  </View>
                 </View>
-                <View style={styles.financialItem}>
-                  <Text style={styles.financialAmount}>$644,653</Text>
-                  <Text style={styles.financialLabel}>30-day view</Text>
-                </View>
-                <View style={styles.financialItem}>
-                  <Text style={styles.financialAmount}>10</Text>
-                  <Text style={styles.financialLabel}>30-day booking</Text>
-                </View>
-              </View>
 
-              <TouchableOpacity style={styles.transactionLink}>
-                <Text style={styles.transactionLinkText}>View transaction history</Text>
-              </TouchableOpacity>
-            </View>
+                {/* Stats Row */}
+                <View style={styles.statsRow}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{reviews.length > 0 ? "4★" : "N/A"}</Text>
+                    <Text style={styles.statLabel}>Overall rating</Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{totalBookings}</Text>
+                    <Text style={styles.statLabel}>Bookings</Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statValue}>{approvedBookings}</Text>
+                    <Text style={styles.statLabel}>Approved</Text>
+                  </View>
+                </View>
+
+                {/* Financial Section */}
+                <View style={styles.financialSection}>
+                  <View style={styles.financialRow}>
+                    <View style={styles.financialItem}>
+                      <Text style={styles.financialAmount}>₦{totalEarnings.toLocaleString()}</Text>
+                      <Text style={styles.financialLabel}>{currentMonth} earnings</Text>
+                    </View>
+                    <View style={styles.financialItem}>
+                      <Text style={styles.financialAmount}>₦{totalEarnings.toLocaleString()}</Text>
+                      <Text style={styles.financialLabel}>Total earnings</Text>
+                    </View>
+                    <View style={styles.financialItem}>
+                      <Text style={styles.financialAmount}>{totalBookings}</Text>
+                      <Text style={styles.financialLabel}>Total bookings</Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity style={styles.transactionLink}>
+                    <Text style={styles.transactionLinkText}>View transaction history</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </>
         )}
 
@@ -331,6 +408,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  switchButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: BG_LIGHT,
+    borderWidth: 1,
+    borderColor: PRIMARY_DARK,
+  },
+  switchButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    fontFamily: "Manrope-SemiBold",
+    color: PRIMARY_DARK,
+  },
   content: {
     flex: 1,
     paddingHorizontal: 20,
@@ -434,28 +528,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 40,
   },
-  chartBackground: {
+  svgChartWrapper: {
     width: 220,
-    height: 110,
-    borderTopLeftRadius: 110,
-    borderTopRightRadius: 110,
-    backgroundColor: "#E0F2FE",
-    overflow: "hidden",
-    marginBottom: 20,
+    height: 220,
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
   },
-  chartFill: {
-    width: 220,
-    height: 110,
-    borderTopLeftRadius: 110,
-    borderTopRightRadius: 110,
-    backgroundColor: PRIMARY_DARK,
-    transform: [{ rotate: "45deg" }],
-    transformOrigin: "bottom center",
+  svgChartText: {
     position: "absolute",
-    right: -55,
-    bottom: 0,
-  },
-  chartTextContainer: {
+    justifyContent: "center",
     alignItems: "center",
   },
   chartPercentage: {
@@ -583,6 +665,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Manrope-Regular",
     color: TEXT_MEDIUM,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontFamily: "Manrope-Regular",
+    color: TEXT_MEDIUM,
+    marginTop: 12,
   },
   bottomNav: {
     flexDirection: "row",

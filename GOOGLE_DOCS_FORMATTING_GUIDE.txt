@@ -1,0 +1,251 @@
+═══════════════════════════════════════════════════════════════════════
+GOOGLE DOCS FORMATTING GUIDE FOR AVERULO PORTFOLIO
+═══════════════════════════════════════════════════════════════════════
+
+STEP 1: COPY THE CONTENT
+────────────────────────────────────────────────────────────────────
+1. Open the file: PORTFOLIO_FOR_GOOGLE_DOCS.txt
+2. Press Cmd+A (Mac) or Ctrl+A (Windows) to select all
+3. Press Cmd+C (Mac) or Ctrl+C (Windows) to copy
+
+STEP 2: CREATE GOOGLE DOC
+────────────────────────────────────────────────────────────────────
+1. Go to https://docs.google.com
+2. Click "+ Blank" to create new document
+3. Name it: "Averulo - Property Rental App Portfolio"
+
+STEP 3: PASTE CONTENT
+────────────────────────────────────────────────────────────────────
+1. Click in the document
+2. Press Cmd+V (Mac) or Ctrl+V (Windows) to paste
+3. Content should appear with basic formatting
+
+STEP 4: FORMAT THE TITLE
+────────────────────────────────────────────────────────────────────
+1. Select the first line: "AVERULO - PROPERTY RENTAL MOBILE APPLICATION"
+2. Click "Format" → "Paragraph styles" → "Title"
+   OR use the style dropdown at top and select "Title"
+3. Make it centered:
+   - With title still selected, click the "Align center" button
+   OR press Cmd+Shift+E (Mac) or Ctrl+Shift+E (Windows)
+4. Change color to dark blue:
+   - Click "A" with underline (text color)
+   - Select a dark blue color (#04123C if custom color available)
+
+STEP 5: FORMAT METADATA (Type, Developer, Timeline, etc.)
+────────────────────────────────────────────────────────────────────
+1. Select lines 2-6 (Type through Platforms)
+2. Make them centered: Cmd+Shift+E (Mac) or Ctrl+Shift+E (Windows)
+3. Make them slightly smaller: Size 11 or 12
+4. Make them italic: Cmd+I (Mac) or Ctrl+I (Windows)
+
+STEP 6: FORMAT SECTION HEADERS
+────────────────────────────────────────────────────────────────────
+For headers like "PROJECT OVERVIEW", "MY ROLE & RESPONSIBILITIES", etc.
+
+1. Select the header text (e.g., "PROJECT OVERVIEW")
+2. Apply "Heading 1" style:
+   - Format → Paragraph styles → Heading 1
+   OR use style dropdown → "Heading 1"
+3. Change to dark blue color
+4. Add space before: Format → Line & paragraph spacing → Add space before paragraph
+
+Repeat for ALL section headers:
+- PROJECT OVERVIEW
+- MY ROLE & RESPONSIBILITIES
+- TECHNICAL STACK
+- KEY FEATURES DEVELOPED
+- TECHNICAL CHALLENGES SOLVED
+- SKILLS DEMONSTRATED
+- DEVELOPMENT METRICS
+- PROJECT OUTCOMES & LEARNINGS
+- FUTURE ENHANCEMENTS
+- SCREENSHOTS & EVIDENCE
+- REPOSITORY & DEMO
+- CONTACT INFORMATION
+
+STEP 7: FORMAT SUB-HEADERS
+────────────────────────────────────────────────────────────────────
+For sub-headers like "Frontend", "Backend", "Challenge 1:", etc.
+
+1. Select the sub-header (e.g., "Frontend")
+2. Apply "Heading 2" style
+3. Make it bold: Cmd+B (Mac) or Ctrl+B (Windows)
+4. Optional: Change color to medium blue
+
+Examples of sub-headers:
+- Frontend, Backend, DevOps & Deployment
+- 1. Authentication System, 2. Dual-Mode User Interface, etc.
+- Challenge 1: Paystack Webhook Security
+- Mobile Development, Backend Development, etc.
+
+STEP 8: FORMAT BULLET POINTS
+────────────────────────────────────────────────────────────────────
+The • bullets should already be there, but to make them proper Google Docs bullets:
+
+1. Select all bulleted items under a section
+2. Click the "Bulleted list" button in toolbar
+   OR press Cmd+Shift+8 (Mac) or Ctrl+Shift+8 (Windows)
+3. Adjust indent if needed
+
+STEP 9: FORMAT CODE BLOCKS
+────────────────────────────────────────────────────────────────────
+For code examples like the webhook code:
+
+1. Select the code block (everything between "Code Example:" and the next section)
+2. Change font to "Courier New" or "Consolas"
+3. Change size to 10 or 11
+4. Add gray background:
+   - Click the highlight color button (paint bucket)
+   - Select light gray
+5. Add border (optional):
+   - Format → Borders and lines → Border around selection
+
+STEP 10: FORMAT DIVIDER LINES
+────────────────────────────────────────────────────────────────────
+The ════ lines are decorative. To make them look better:
+
+Option A: Keep as text
+1. Select the line
+2. Center it
+3. Change color to light gray
+
+Option B: Replace with horizontal line
+1. Delete the ════ line
+2. Click Insert → Horizontal line
+3. This creates a clean divider
+
+STEP 11: ADD TABLE OF CONTENTS (OPTIONAL)
+────────────────────────────────────────────────────────────────────
+Since you used Heading styles, you can auto-generate a table of contents:
+
+1. Place cursor at the top of document (after title section)
+2. Click Insert → Table of contents
+3. Choose a style (with links is recommended)
+4. Table auto-updates when you edit headers!
+
+STEP 12: FORMAT METRICS SECTION
+────────────────────────────────────────────────────────────────────
+For the bullet list under "DEVELOPMENT METRICS":
+
+1. Select all metric items
+2. Apply bullet list
+3. Make key parts bold:
+   - Select "Total Screens:" and make bold
+   - Select "50+ unique screens" and leave normal
+   - Repeat for each metric line
+
+STEP 13: FORMAT CONTACT SECTION
+────────────────────────────────────────────────────────────────────
+1. Select the contact information lines
+2. Make them slightly larger (size 12 or 13)
+3. Center them
+4. Make labels bold:
+   - Bold "Developer:", "Email:", etc.
+   - Leave the actual info normal
+
+STEP 14: ADD YOUR SCREENSHOTS
+────────────────────────────────────────────────────────────────────
+Where it says "[INSERT 20 SCREENSHOTS HERE]":
+
+1. Delete that placeholder text
+2. Click Insert → Image → Upload from computer
+3. Upload your screenshots
+4. Resize to fit nicely (usually 3-4 inches wide)
+5. Add captions:
+   - Right-click image → "Image options"
+   - Or just add text below: "Figure 1: Login Screen"
+
+Pro Tip: Use 2-column layout for screenshots
+1. Select the screenshot section
+2. Format → Columns → 2 columns
+3. Images will arrange side-by-side
+
+STEP 15: FINAL TOUCHES
+────────────────────────────────────────────────────────────────────
+1. Add page numbers:
+   - Insert → Page numbers
+   - Choose bottom right
+
+2. Adjust margins (optional):
+   - File → Page setup
+   - Set margins to 0.75" or 1"
+
+3. Set line spacing:
+   - Select all (Cmd+A / Ctrl+A)
+   - Format → Line & paragraph spacing → 1.15
+
+4. Proofread and spell check:
+   - Tools → Spelling and grammar
+
+5. Add your actual info:
+   - Replace [Your Email] with real email
+   - Replace [Your LinkedIn] with real LinkedIn URL
+   - Replace [Your GitHub] with real GitHub URL
+   - Update timeline dates
+
+═══════════════════════════════════════════════════════════════════════
+
+QUICK REFERENCE: KEYBOARD SHORTCUTS
+═══════════════════════════════════════════════════════════════════════
+
+Mac:
+Cmd+B = Bold
+Cmd+I = Italic
+Cmd+U = Underline
+Cmd+Shift+E = Center align
+Cmd+Shift+L = Left align
+Cmd+Shift+8 = Bullet list
+Cmd+Shift+7 = Numbered list
+Cmd+K = Insert link
+Cmd+Option+1 = Heading 1
+Cmd+Option+2 = Heading 2
+Cmd+Option+0 = Normal text
+
+Windows:
+Ctrl+B = Bold
+Ctrl+I = Italic
+Ctrl+U = Underline
+Ctrl+Shift+E = Center align
+Ctrl+Shift+L = Left align
+Ctrl+Shift+8 = Bullet list
+Ctrl+Shift+7 = Numbered list
+Ctrl+K = Insert link
+Ctrl+Alt+1 = Heading 1
+Ctrl+Alt+2 = Heading 2
+Ctrl+Alt+0 = Normal text
+
+═══════════════════════════════════════════════════════════════════════
+
+COLOR SCHEME SUGGESTION
+═══════════════════════════════════════════════════════════════════════
+
+Main Title: Dark Blue (#04123C) - the app's primary color
+Section Headers (Heading 1): Dark Blue (#04123C)
+Sub-Headers (Heading 2): Medium Gray (#3E5663)
+Body Text: Black or Dark Gray
+Code Background: Light Gray (#F3F4F6)
+Divider Lines: Light Gray
+
+═══════════════════════════════════════════════════════════════════════
+
+ESTIMATED TIME
+═══════════════════════════════════════════════════════════════════════
+
+Basic formatting (Steps 1-9): 15-20 minutes
+Adding screenshots: 10-15 minutes
+Final touches: 5-10 minutes
+
+Total: 30-45 minutes for professional result
+
+═══════════════════════════════════════════════════════════════════════
+
+DONE! 🎉
+
+Your portfolio document is now professional and ready to share!
+
+Export as PDF:
+File → Download → PDF Document (.pdf)
+
+Share link:
+Click "Share" button → Get link → Change to "Anyone with the link can view"

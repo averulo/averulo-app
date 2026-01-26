@@ -52,6 +52,44 @@ export default function TakePhotoOfIDScreen({ route }) {
     }
   };
 
+  // Pick from gallery/file explorer
+  const pickFromGallery = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permission required", "Photo library access is needed!");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      aspect: [3, 2],
+      quality: 1,
+    });
+
+    if (!result.canceled && result.assets?.length > 0) {
+      const uri = result.assets[0].uri;
+      if (currentStep === "front") {
+        setFrontPhoto(uri);
+        setCurrentStep("back");
+      } else {
+        setBackPhoto(uri);
+      }
+    }
+  };
+
+  // Show options to choose camera or gallery
+  const showImageOptions = () => {
+    Alert.alert(
+      "Upload ID Photo",
+      "Choose how to add your photo",
+      [
+        { text: "Take Photo", onPress: openCamera },
+        { text: "Choose from Gallery", onPress: pickFromGallery },
+        { text: "Cancel", style: "cancel" },
+      ]
+    );
+  };
+
   // Submit both sides to backend
   const handleSubmit = async () => {
     if (!frontPhoto || !backPhoto) {
@@ -134,7 +172,7 @@ export default function TakePhotoOfIDScreen({ route }) {
       {/* Rectangular Image Preview */}
       <TouchableOpacity
         style={styles.imageWrapper}
-        onPress={openCamera}
+        onPress={showImageOptions}
         disabled={submitting}
       >
         {currentStep === "front" ? (
@@ -143,7 +181,7 @@ export default function TakePhotoOfIDScreen({ route }) {
           ) : (
             <View style={styles.placeholder}>
               <Ionicons name="card" size={60} color="#555" />
-              <Text style={styles.placeholderText}>Tap to capture front of ID</Text>
+              <Text style={styles.placeholderText}>Tap to add front of ID</Text>
             </View>
           )
         ) : backPhoto ? (
@@ -151,7 +189,7 @@ export default function TakePhotoOfIDScreen({ route }) {
         ) : (
           <View style={styles.placeholder}>
             <Ionicons name="card" size={60} color="#555" />
-            <Text style={styles.placeholderText}>Tap to capture back of ID</Text>
+            <Text style={styles.placeholderText}>Tap to add back of ID</Text>
           </View>
         )}
       </TouchableOpacity>

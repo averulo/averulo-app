@@ -6,6 +6,7 @@ import {
   getAllUsers,
   getMe,
   getPendingKycUsers,
+  submitNIN,
   updateKycStatus,
   updateMe,
   uploadKycDocs,
@@ -76,5 +77,11 @@ router.post(
   ]),
   uploadKycDocs
 );
+
+/**
+ * 🆔 POST /api/users/kyc/submit-nin
+ * User submits NIN for verification (no photos)
+ */
+router.post("/kyc/submit-nin", auth(true), submitNIN);
 
 export default router;

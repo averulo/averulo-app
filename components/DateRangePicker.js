@@ -56,6 +56,21 @@ export default function DateRangePicker({ checkIn, checkOut, onDatesChange }) {
 
   const handleConfirm = () => {
     if (tempCheckIn && tempCheckOut) {
+      // Validate dates are in correct format (YYYY-MM-DD)
+      const checkInDate = new Date(tempCheckIn);
+      const checkOutDate = new Date(tempCheckOut);
+
+      if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
+        console.log("❌ Invalid date format:", tempCheckIn, tempCheckOut);
+        return;
+      }
+
+      if (checkOutDate <= checkInDate) {
+        console.log("❌ Check-out must be after check-in");
+        return;
+      }
+
+      console.log("✅ Dates confirmed:", tempCheckIn, "to", tempCheckOut);
       onDatesChange(tempCheckIn, tempCheckOut);
       setModalVisible(false);
       setSelectingCheckOut(false);

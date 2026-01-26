@@ -9,10 +9,12 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "bundleIdentifier": "com.yele.averuloapp",
       "infoPlist": {
         "NSCameraUsageDescription": "We need access to your camera for KYC photo verification.",
         "NSPhotoLibraryUsageDescription": "We need access to your photo library to select ID images.",
-        "NSLocationWhenInUseUsageDescription": "We need your location to show properties near you."
+        "NSLocationWhenInUseUsageDescription": "We need your location to show properties near you.",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "supportsTablet": true
     },

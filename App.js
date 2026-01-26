@@ -6,7 +6,8 @@ import { NotificationsProvider } from './hooks/useNotifications';
 
 import { useFonts, Manrope_300Light, Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold } from '@expo-google-fonts/manrope';
 import * as SplashScreen from "expo-splash-screen";
-import { useCallback } from "react";
+import * as Updates from "expo-updates";
+import { useCallback, useEffect } from "react";
 
 import MainTabs from './navigation/MainTabs';
 
@@ -77,6 +78,26 @@ export default function App() {
     "Manrope-Medium": Manrope_500Medium,
     "Manrope-SemiBold": Manrope_600SemiBold,
   });
+
+  // 🔄 Check for OTA updates on app launch
+  useEffect(() => {
+    async function checkForUpdates() {
+      if (!__DEV__) {
+        try {
+          const update = await Updates.checkForUpdateAsync();
+          if (update.isAvailable) {
+            console.log("📥 Downloading update...");
+            await Updates.fetchUpdateAsync();
+            console.log("✅ Update downloaded, reloading...");
+            await Updates.reloadAsync();
+          }
+        } catch (error) {
+          console.error("Update check failed:", error);
+        }
+      }
+    }
+    checkForUpdates();
+  }, []);
 
   // 👇 This must hide splash *after* fonts finish AND after navigation is ready
   const onLayoutRootView = useCallback(async () => {

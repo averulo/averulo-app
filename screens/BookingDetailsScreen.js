@@ -71,6 +71,26 @@ export default function BookingDetailsScreen() {
       return;
     }
 
+    // Validate guest name
+    if (!guestName.trim()) {
+      Alert.alert("Missing Name", "Please enter the guest name.");
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.trim() || !emailRegex.test(email.trim())) {
+      Alert.alert("Invalid Email", "Please enter a valid email address.");
+      return;
+    }
+
+    // Validate phone number (10-15 digits)
+    const phoneDigits = phone.replace(/\D/g, '');
+    if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+      Alert.alert("Invalid Phone", "Please enter a valid phone number (10-15 digits).");
+      return;
+    }
+
     if (!token) {
       Alert.alert("Login required", "Please log in to book.");
       return;
@@ -141,7 +161,24 @@ export default function BookingDetailsScreen() {
 
       if (!response.ok) {
         console.log("❌ Booking error:", response.status, data);
-        Alert.alert("Error", data?.error || "Unable to book");
+
+        // Show specific error messages based on backend response
+        let errorMessage = "Unable to book. Please try again.";
+        if (data?.error) {
+          if (data.error.includes("not found")) {
+            errorMessage = "This property is no longer available.";
+          } else if (data.error.includes("not bookable")) {
+            errorMessage = "This property is not available for booking at the moment.";
+          } else if (data.error.includes("Dates not available")) {
+            errorMessage = "These dates are already booked. Please select different dates.";
+          } else if (data.error.includes("blocked")) {
+            errorMessage = "These dates are blocked by the host. Please select different dates.";
+          } else {
+            errorMessage = data.error;
+          }
+        }
+
+        Alert.alert("Booking Failed", errorMessage);
         setSubmitting(false);
         return;
       }
@@ -159,7 +196,13 @@ export default function BookingDetailsScreen() {
       });
     } catch (err) {
       console.log("❌ Booking exception:", err);
-      Alert.alert("Error", "Unable to book");
+
+      // Check if it's a network error
+      if (err.message?.includes("Network") || err.message?.includes("fetch")) {
+        Alert.alert("Connection Error", "Please check your internet connection and try again.");
+      } else {
+        Alert.alert("Booking Failed", "Something went wrong. Please try again.");
+      }
     } finally {
       setSubmitting(false);
     }

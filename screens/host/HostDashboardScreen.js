@@ -1,8 +1,9 @@
 // screens/host/HostDashboardScreen.js
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import { useState } from "react";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useState, useCallback } from "react";
 import {
+  ActivityIndicator,
   Image,
   ScrollView,
   StyleSheet,
@@ -12,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../../hooks/useAuth";
+import { API_BASE } from "../../lib/api";
 
 const PRIMARY_DARK = "#04123C";
 const TEXT_DARK = "#1F2937";
@@ -23,19 +25,74 @@ const BG_LIGHT = "#F9FAFB";
 
 export default function HostDashboardScreen() {
   const navigation = useNavigation();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   const [selectedTab, setSelectedTab] = useState("currently");
+  const [loading, setLoading] = useState(true);
+  const [properties, setProperties] = useState([]);
+  const [bookings, setBookings] = useState([]);
 
-  const userName = user?.name || "John";
+  const userName = user?.name || "Host";
 
-  // Sample property data
-  const property = {
-    name: "Lugar de grande 510, South Africa",
-    room: "Room 1-10",
-    price: "$644,653",
-    image: "https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg",
+  // Fetch host data when screen focuses
+  useFocusEffect(
+    useCallback(() => {
+      fetchHostData();
+    }, [token])
+  );
+
+  const fetchHostData = async () => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Fetch properties and bookings in parallel
+      const [propsRes, bookingsRes] = await Promise.all([
+        fetch(`${API_BASE}/api/properties?hostId=${user?.sub || user?.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API_BASE}/api/bookings/host`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      if (propsRes.ok) {
+        const propsData = await propsRes.json();
+        setProperties(propsData.data || propsData || []);
+      }
+
+      if (bookingsRes.ok) {
+        const bookingsData = await bookingsRes.json();
+        setBookings(bookingsData || []);
+      }
+    } catch (err) {
+      console.log("Host data fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Get first property or show placeholder
+  const property = properties[0] || null;
+
+  // Count bookings by status
+  const today = new Date();
+  const checkedOutCount = bookings.filter(b =>
+    b.status === 'COMPLETED' || new Date(b.endDate) < today
+  ).length;
+  const currentCount = bookings.filter(b =>
+    b.status === 'APPROVED' &&
+    new Date(b.startDate) <= today &&
+    new Date(b.endDate) >= today
+  ).length;
+  const futureCount = bookings.filter(b =>
+    (b.status === 'PENDING' || b.status === 'APPROVED') &&
+    new Date(b.startDate) > today
+  ).length;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -46,11 +103,18 @@ export default function HostDashboardScreen() {
           <Text style={styles.headerTitle}>Averulo limited</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconButton}>
-            <Ionicons name="share-outline" size={22} color={TEXT_DARK} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
-            <Ionicons name="ellipsis-horizontal" size={22} color={TEXT_DARK} />
+          <TouchableOpacity
+            style={styles.switchButton}
+            onPress={() => {
+              // Switch to guest mode - navigate to main app
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainTabs' }],
+              });
+            }}
+          >
+            <Ionicons name="swap-horizontal" size={22} color={PRIMARY_DARK} />
+            <Text style={styles.switchButtonText}>Switch to Guest</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -66,21 +130,39 @@ export default function HostDashboardScreen() {
         </Text>
 
         {/* Welcome Card */}
-        <View style={styles.welcomeCard}>
-          <Text style={styles.welcomeText}>Welcome!</Text>
-          <Image
-            source={{ uri: property.image }}
-            style={styles.propertyImage}
-            resizeMode="cover"
-          />
-          <View style={styles.propertyInfo}>
-            <View style={styles.propertyDetails}>
-              <Text style={styles.propertyName}>{property.name}</Text>
-              <Text style={styles.propertyRoom}>{property.room}</Text>
-            </View>
-            <Text style={styles.propertyPrice}>{property.price}</Text>
+        {loading ? (
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="large" color={PRIMARY_DARK} />
+            <Text style={styles.loadingText}>Loading your properties...</Text>
           </View>
-        </View>
+        ) : property ? (
+          <View style={styles.welcomeCard}>
+            <Text style={styles.welcomeText}>Welcome!</Text>
+            <Image
+              source={{ uri: property.images?.[0]?.url || property.image || "https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg" }}
+              style={styles.propertyImage}
+              resizeMode="cover"
+            />
+            <View style={styles.propertyInfo}>
+              <View style={styles.propertyDetails}>
+                <Text style={styles.propertyName}>{property.title || property.name}</Text>
+                <Text style={styles.propertyRoom}>{property.city || "Your Property"}</Text>
+              </View>
+              <Text style={styles.propertyPrice}>₦{(property.nightlyPrice || 0).toLocaleString()}</Text>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.welcomeCard}
+            onPress={() => navigation.navigate("CreatePropertyScreen")}
+          >
+            <Text style={styles.welcomeText}>Get Started!</Text>
+            <View style={styles.emptyPropertyCard}>
+              <Ionicons name="add-circle-outline" size={48} color={PRIMARY_DARK} />
+              <Text style={styles.emptyPropertyText}>Create your first property listing</Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
         {/* View Bookings Button */}
         <TouchableOpacity
@@ -106,7 +188,7 @@ export default function HostDashboardScreen() {
                   selectedTab === "checked-out" && styles.tabTextActive,
                 ]}
               >
-                Checkout out (0)
+                Checked out ({checkedOutCount})
               </Text>
             </TouchableOpacity>
 
@@ -120,7 +202,7 @@ export default function HostDashboardScreen() {
                   selectedTab === "currently" && styles.tabTextActive,
                 ]}
               >
-                Currently guests (0)
+                Currently guests ({currentCount})
               </Text>
             </TouchableOpacity>
 
@@ -134,7 +216,7 @@ export default function HostDashboardScreen() {
                   selectedTab === "future" && styles.tabTextActive,
                 ]}
               >
-                Future guest (1)
+                Future guest ({futureCount})
               </Text>
             </TouchableOpacity>
           </View>
@@ -148,8 +230,11 @@ export default function HostDashboardScreen() {
         </View>
 
         {/* All Reservation */}
-        <TouchableOpacity style={styles.allReservationButton}>
-          <Text style={styles.allReservationText}>All reservation (0)</Text>
+        <TouchableOpacity
+          style={styles.allReservationButton}
+          onPress={() => navigation.navigate("HostBookingsScreen")}
+        >
+          <Text style={styles.allReservationText}>All reservation ({bookings.length})</Text>
         </TouchableOpacity>
 
         {/* Reviews Section */}
@@ -238,6 +323,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  switchButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: BG_LIGHT,
+    borderWidth: 1,
+    borderColor: PRIMARY_DARK,
+  },
+  switchButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    fontFamily: "Manrope-SemiBold",
+    color: PRIMARY_DARK,
+  },
   content: {
     flex: 1,
     paddingHorizontal: 20,
@@ -296,6 +398,32 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontFamily: "Manrope-Bold",
     color: TEXT_DARK,
+  },
+  loadingCard: {
+    backgroundColor: BG_WHITE,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: BORDER_GRAY,
+    padding: 40,
+    marginBottom: 16,
+    alignItems: "center",
+  },
+  loadingText: {
+    fontSize: 14,
+    fontFamily: "Manrope-Regular",
+    color: TEXT_MEDIUM,
+    marginTop: 12,
+  },
+  emptyPropertyCard: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  emptyPropertyText: {
+    fontSize: 14,
+    fontFamily: "Manrope-Medium",
+    color: TEXT_MEDIUM,
+    marginTop: 12,
+    textAlign: "center",
   },
   viewBookingsButton: {
     backgroundColor: BG_WHITE,

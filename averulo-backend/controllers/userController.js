@@ -153,3 +153,40 @@ export async function uploadKycDocs(req, res) {
     res.status(500).json({ error: err.message });
   }
 }
+
+/**
+ * POST /api/users/kyc/submit-nin
+ * Submit NIN for verification (no photos required)
+ */
+export async function submitNIN(req, res) {
+  try {
+    const { nin } = req.body;
+
+    if (!nin) {
+      return res.status(400).json({ error: "NIN is required" });
+    }
+
+    // Validate NIN format (11 digits)
+    if (!/^\d{11}$/.test(nin)) {
+      return res.status(400).json({ error: "NIN must be 11 numeric digits" });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.sub },
+      data: {
+        kycStatus: "PENDING",
+        kycType: "national-id",
+        kycNin: nin,
+      },
+    });
+
+    res.json({
+      ok: true,
+      message: "NIN submitted successfully for verification",
+      user: updatedUser,
+    });
+  } catch (err) {
+    console.error("NIN submission failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+}

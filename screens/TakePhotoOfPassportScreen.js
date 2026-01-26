@@ -31,6 +31,38 @@ export default function TakePhotoOfPassportScreen() {
     }
   };
 
+  // Pick from gallery/file explorer
+  const pickFromGallery = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission required', 'Photo library access is needed!');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+
+    if (!result.canceled && result.assets?.length > 0) {
+      setSelfiePhoto(result.assets[0].uri);
+    }
+  };
+
+  // Show options to choose camera or gallery
+  const showImageOptions = () => {
+    Alert.alert(
+      "Upload Photo",
+      "Choose how to add your photo",
+      [
+        { text: "Take Photo", onPress: openCamera },
+        { text: "Choose from Gallery", onPress: pickFromGallery },
+        { text: "Cancel", style: "cancel" },
+      ]
+    );
+  };
+
   const handleRetake = () => {
     setSelfiePhoto(null);
   };
@@ -78,7 +110,7 @@ export default function TakePhotoOfPassportScreen() {
       <View style={styles.circleWrapper}>
         <TouchableOpacity
           style={styles.circlePreview}
-          onPress={openCamera}
+          onPress={showImageOptions}
           disabled={submitting}
         >
           {selfiePhoto ? (

@@ -325,7 +325,7 @@ function RoomPriceCard({ roomLabel, price, media, onEdit }) {
 
       {/* Room Label and Price */}
       <Text style={styles.priceCardLabel}>{roomLabel}</Text>
-      <Text style={styles.priceCardAmount}>${price}</Text>
+      <Text style={styles.priceCardAmount}>₦{price}</Text>
 
       {/* Edit Button */}
       <TouchableOpacity onPress={onEdit} style={styles.priceEditButton}>

@@ -92,8 +92,22 @@ export default function PropertiesListScreen() {
   }
 
   useEffect(() => {
+    // Set header with "Switch to Host" button
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => navigation.navigate("BecomeHostScreen")}
+          style={{ marginRight: 16, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#010F1D', borderRadius: 8 }}
+        >
+          <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600' }}>
+            Switch to Host
+          </Text>
+        </TouchableOpacity>
+      ),
+    });
+
     loadProperties();
-  }, []);
+  }, [navigation]);
 
   return (
     <SafeAreaView style={styles.safeArea}>

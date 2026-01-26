@@ -76,15 +76,20 @@ export default function SignUpScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
       <Text style={styles.authSwitch}>Log in or Sign up</Text>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={[styles.container, { paddingBottom: 400 }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={styles.title}>Sign up</Text>
 
           <Text style={styles.label}>Name</Text>
           <TextInput
-            placeholder="Your name"
+            placeholder="Enter your first and last name"
             style={[styles.input, focusedField === 'name' && styles.focusedInput]}
             value={name}
             onChangeText={setName}
@@ -94,7 +99,7 @@ export default function SignUpScreen() {
 
           <Text style={styles.label}>Email</Text>
             <TextInput
-            placeholder="Email address"
+            placeholder="Enter your email address"
             keyboardType="email-address"
             autoCapitalize="none"
             style={[styles.input, focusedField === 'email' && styles.focusedInput]}
@@ -121,7 +126,21 @@ export default function SignUpScreen() {
               minimumDate={new Date(1900, 0, 1)}
               onChange={(event, selectedDate) => {
                 setShowPicker(false);
-                if (selectedDate) setDob(selectedDate);
+                if (selectedDate) {
+                  // Validate age is at least 18
+                  const today = new Date();
+                  const age = today.getFullYear() - selectedDate.getFullYear();
+                  const monthDiff = today.getMonth() - selectedDate.getMonth();
+                  const dayDiff = today.getDate() - selectedDate.getDate();
+
+                  const actualAge = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? age - 1 : age;
+
+                  if (actualAge < 18) {
+                    alert('You must be at least 18 years old to sign up.');
+                    return;
+                  }
+                  setDob(selectedDate);
+                }
               }}
             />
           )}
@@ -129,7 +148,7 @@ export default function SignUpScreen() {
           <Text style={styles.label}>Password</Text>
           <View style={styles.passwordWrapper}>
             <TextInput
-              placeholder="********"
+              placeholder="Create a password (min. 8 characters)"
               secureTextEntry={!isPasswordVisible}
               style={[styles.plainInput, focusedField === 'password' && styles.focusedInput]}
               value={password}
@@ -154,7 +173,7 @@ export default function SignUpScreen() {
           <Text style={styles.label}>Confirm Password</Text>
           <View style={styles.passwordWrapper}>
             <TextInput
-              placeholder="********"
+              placeholder="Re-enter your password"
               secureTextEntry={!isConfirmVisible}
               style={[styles.plainInput, focusedField === 'confirmPassword' && styles.focusedInput]}
               value={confirmPassword}
@@ -171,13 +190,27 @@ export default function SignUpScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.agreement}>
-            By selecting Continue, I agree to Averulo’s{' '}
-            <Text style={styles.link}>Terms of Service</Text>,{' '}
-            <Text style={styles.link}>Payments Terms of Service</Text>, and{' '}
-            <Text style={styles.link}>Nondiscretionary Policy</Text>, and acknowledge the{' '}
-            <Text style={styles.link}>Privacy Policy</Text>.
-          </Text>
+          <View style={styles.agreementContainer}>
+            <Text style={styles.agreement}>
+              By selecting Continue, I agree to Averulo's{' '}
+            </Text>
+            <TouchableOpacity onPress={() => alert('Terms of Service - Coming soon')}>
+              <Text style={styles.link}>Terms of Service</Text>
+            </TouchableOpacity>
+            <Text style={styles.agreement}>, </Text>
+            <TouchableOpacity onPress={() => alert('Payments Terms of Service - Coming soon')}>
+              <Text style={styles.link}>Payments Terms of Service</Text>
+            </TouchableOpacity>
+            <Text style={styles.agreement}>, and </Text>
+            <TouchableOpacity onPress={() => alert('Nondiscretionary Policy - Coming soon')}>
+              <Text style={styles.link}>Nondiscretionary Policy</Text>
+            </TouchableOpacity>
+            <Text style={styles.agreement}>, and acknowledge the </Text>
+            <TouchableOpacity onPress={() => alert('Privacy Policy - Coming soon')}>
+              <Text style={styles.link}>Privacy Policy</Text>
+            </TouchableOpacity>
+            <Text style={styles.agreement}>.</Text>
+          </View>
         </ScrollView>
 
         <View style={{ padding: 20 }}>
@@ -190,7 +223,17 @@ export default function SignUpScreen() {
             onPress={handleSubmit}
           >
             <Text style={styles.continueText}>Continue</Text>
-        
+
+          </TouchableOpacity>
+
+          {/* Login Link */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Login')}
+            style={styles.loginLinkContainer}
+          >
+            <Text style={styles.loginLinkText}>
+              Already have an account? <Text style={styles.loginLinkBold}>Log in</Text>
+            </Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -252,15 +295,20 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 20,
   },
+  agreementContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 10,
+    marginBottom: 20,
+  },
   agreement: {
     fontSize: 12,
     color: '#666',
-    marginTop: 10,
-    marginBottom: 20,
   },
   link: {
     color: '#000A63',
     fontWeight: '500',
+    fontSize: 12,
   },
   continueBtn: {
     paddingVertical: 16,
@@ -277,5 +325,17 @@ const styles = StyleSheet.create({
     color: '#888',
     textAlign: 'center',
     marginTop: 12,
+  },
+  loginLinkContainer: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  loginLinkText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  loginLinkBold: {
+    color: '#000A63',
+    fontWeight: '600',
   },
 });

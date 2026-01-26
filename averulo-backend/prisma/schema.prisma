@@ -50,6 +50,7 @@ model User {
   kycType   String?
   kycFrontUrl String?
   kycBackUrl  String?
+  kycNin      String?   // National Identification Number (for NIN verification)
 
   // 🔐 add these for OTP
   otp String? // store last OTP (dev/MVP)

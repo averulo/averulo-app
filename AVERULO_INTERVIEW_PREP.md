@@ -144,6 +144,7 @@ hooks/                → Business Logic Layer
 
 lib/api.js            → Data Access Layer
   └── Centralized API client with 30+ methods
+  
 
 components/           → Reusable UI Components
 navigation/           → Navigation configuration

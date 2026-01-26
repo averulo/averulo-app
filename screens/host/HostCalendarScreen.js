@@ -1,16 +1,20 @@
 // screens/host/HostCalendarScreen.js
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import { useState } from "react";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useState, useCallback } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
   Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "../../hooks/useAuth";
+import { API_BASE } from "../../lib/api";
 
 const PRIMARY_DARK = "#04123C";
 const TEXT_DARK = "#1F2937";
@@ -24,58 +28,95 @@ const RESERVE_DARK = "#1E293B";
 
 export default function HostCalendarScreen() {
   const navigation = useNavigation();
-  const [selectedDate, setSelectedDate] = useState(11);
+  const { token } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [bookings, setBookings] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Upcoming dates
-  const upcomingDates = [
-    { day: 9, label: "Sun" },
-    { day: 10, label: "Mon" },
-    { day: 11, label: "Tue" },
-    { day: 12, label: "Wed" },
-    { day: 13, label: "Thu" },
-    { day: 14, label: "Fri" },
-    { day: 15, label: "Sat" },
-  ];
+  // Generate upcoming 7 days
+  const today = new Date();
+  const upcomingDates = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    return {
+      day: date.getDate(),
+      label: dayNames[date.getDay()],
+      fullDate: date,
+    };
+  });
 
-  // Calendar grid data (12 rooms x 7 days)
-  // 0 = vacant, 1 = occupy, 2 = reserve
+  const [selectedDate, setSelectedDate] = useState(upcomingDates[0].day);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchBookings();
+    }, [token])
+  );
+
+  const fetchBookings = async () => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE}/api/bookings/host`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setBookings(data || []);
+      }
+    } catch (err) {
+      console.log("Fetch bookings error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Generate calendar data based on bookings
   const calendarData = Array.from({ length: 12 }, (_, roomIndex) =>
     Array.from({ length: 7 }, (_, dayIndex) => {
-      // Reserve pattern for days Tue(2) and Wed(3)
-      if (dayIndex === 2 || dayIndex === 3) return 2;
-      // Occupy pattern for days Sun(0) and Mon(1)
-      if (dayIndex === 0 || dayIndex === 1) return 1;
-      return 0; // Vacant for remaining days
+      const checkDate = new Date(today);
+      checkDate.setDate(today.getDate() + dayIndex);
+
+      // Check if any booking covers this date
+      const hasBooking = bookings.find(b => {
+        const start = new Date(b.startDate);
+        const end = new Date(b.endDate);
+        return checkDate >= start && checkDate <= end;
+      });
+
+      if (hasBooking) {
+        return hasBooking.status === 'APPROVED' ? 1 : 2; // 1 = occupy, 2 = reserve
+      }
+      return 0; // Vacant
     })
   );
 
-  // Sample reservations
-  const reservations = [
-    {
-      id: 1,
-      name: "Dr. Jane Okoro",
-      phone: "07012345678",
-      dates: "10/12/2024 - 15/6/2024",
-      price: "$644,653",
-      image: "https://i.pravatar.cc/150?img=5",
-    },
-    {
-      id: 2,
-      name: "Dr. Jane Okoro",
-      phone: "07012345678",
-      dates: "10/12/2024 - 15/6/2024",
-      price: "$644,653",
-      image: "https://i.pravatar.cc/150?img=5",
-    },
-    {
-      id: 3,
-      name: "Dr. Jane Okoro",
-      phone: "07012345678",
-      dates: "10/12/2024 - 15/6/2024",
-      price: "$644,653",
-      image: "https://i.pravatar.cc/150?img=5",
-    },
-  ];
+  // Format date for display
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+  };
+
+  // Get upcoming reservations from bookings
+  const reservations = bookings
+    .filter(b => b.status === 'PENDING' || b.status === 'APPROVED')
+    .slice(0, 5)
+    .map(b => ({
+      id: b.id,
+      name: b.guest?.name || b.guest?.email || "Guest",
+      phone: b.guest?.phone || "",
+      dates: `${formatDate(b.startDate)} - ${formatDate(b.endDate)}`,
+      price: b.totalAmount ? `₦${(b.totalAmount / 100).toLocaleString()}` : "₦0",
+      image: `https://i.pravatar.cc/150?u=${b.guestId}`,
+      status: b.status,
+    }));
 
   const getCellStyle = (status) => {
     if (status === 0) return styles.cellVacant;
@@ -93,11 +134,17 @@ export default function HostCalendarScreen() {
           <Text style={styles.headerTitle}>Averulo limited</Text>
         </View>
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconButton}>
-            <Ionicons name="share-outline" size={22} color={TEXT_DARK} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
-            <Ionicons name="ellipsis-horizontal" size={22} color={TEXT_DARK} />
+          <TouchableOpacity
+            style={styles.switchButton}
+            onPress={() => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainTabs' }],
+              });
+            }}
+          >
+            <Ionicons name="swap-horizontal" size={22} color={PRIMARY_DARK} />
+            <Text style={styles.switchButtonText}>Switch to Guest</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -107,8 +154,20 @@ export default function HostCalendarScreen() {
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Upcoming Reservation */}
-        <Text style={styles.pageTitle}>Upcoming reservation</Text>
+        {/* Calendar Overview */}
+        <Text style={styles.pageTitle}>Calendar Overview</Text>
+
+        {/* Search Bar */}
+        <View style={styles.searchBar}>
+          <Ionicons name="search-outline" size={18} color={TEXT_LIGHT} />
+          <TextInput
+            placeholder="Search for location, hotel"
+            placeholderTextColor={TEXT_LIGHT}
+            style={styles.searchInput}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
 
         {/* Date Selector */}
         <View style={styles.dateRow}>
@@ -175,29 +234,43 @@ export default function HostCalendarScreen() {
         {/* Reservations Section */}
         <Text style={styles.sectionTitle}>Reservation(s)</Text>
 
-        {reservations.map((reservation) => (
-          <View key={reservation.id} style={styles.reservationCard}>
-            <View style={styles.reservationImageContainer}>
-              <Image
-                source={{ uri: reservation.image }}
-                style={styles.reservationImage}
-              />
-              <View style={styles.redFlag} />
-            </View>
-            <View style={styles.reservationInfo}>
-              <Text style={styles.reservationName}>{reservation.name}</Text>
-              <View style={styles.reservationDetail}>
-                <Ionicons name="call-outline" size={14} color={TEXT_MEDIUM} />
-                <Text style={styles.reservationText}>{reservation.phone}</Text>
-              </View>
-              <View style={styles.reservationDetail}>
-                <Ionicons name="calendar-outline" size={14} color={TEXT_MEDIUM} />
-                <Text style={styles.reservationText}>{reservation.dates}</Text>
-              </View>
-            </View>
-            <Text style={styles.reservationPrice}>{reservation.price}</Text>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={PRIMARY_DARK} />
+            <Text style={styles.loadingText}>Loading reservations...</Text>
           </View>
-        ))}
+        ) : reservations.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="calendar-outline" size={48} color={TEXT_MEDIUM} />
+            <Text style={styles.emptyText}>No upcoming reservations</Text>
+          </View>
+        ) : (
+          reservations.map((reservation) => (
+            <View key={reservation.id} style={styles.reservationCard}>
+              <View style={styles.reservationImageContainer}>
+                <Image
+                  source={{ uri: reservation.image }}
+                  style={styles.reservationImage}
+                />
+                {reservation.status === 'PENDING' && <View style={styles.redFlag} />}
+              </View>
+              <View style={styles.reservationInfo}>
+                <Text style={styles.reservationName}>{reservation.name}</Text>
+                {reservation.phone ? (
+                  <View style={styles.reservationDetail}>
+                    <Ionicons name="call-outline" size={14} color={TEXT_MEDIUM} />
+                    <Text style={styles.reservationText}>{reservation.phone}</Text>
+                  </View>
+                ) : null}
+                <View style={styles.reservationDetail}>
+                  <Ionicons name="calendar-outline" size={14} color={TEXT_MEDIUM} />
+                  <Text style={styles.reservationText}>{reservation.dates}</Text>
+                </View>
+              </View>
+              <Text style={styles.reservationPrice}>{reservation.price}</Text>
+            </View>
+          ))
+        )}
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -272,6 +345,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  switchButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: BG_LIGHT,
+    borderWidth: 1,
+    borderColor: PRIMARY_DARK,
+  },
+  switchButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    fontFamily: "Manrope-SemiBold",
+    color: PRIMARY_DARK,
+  },
   content: {
     flex: 1,
     paddingHorizontal: 20,
@@ -282,7 +372,25 @@ const styles = StyleSheet.create({
     fontFamily: "Manrope-SemiBold",
     color: TEXT_DARK,
     marginTop: 24,
+    marginBottom: 16,
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: BG_LIGHT,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: BORDER_GRAY,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 14,
+    fontFamily: "Manrope-Regular",
+    color: TEXT_DARK,
   },
   sectionTitle: {
     fontSize: 16,
@@ -468,5 +576,25 @@ const styles = StyleSheet.create({
     color: PRIMARY_DARK,
     fontWeight: "600",
     fontFamily: "Manrope-SemiBold",
+  },
+  loadingContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontFamily: "Manrope-Regular",
+    color: TEXT_MEDIUM,
+    marginTop: 12,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 14,
+    fontFamily: "Manrope-Regular",
+    color: TEXT_MEDIUM,
+    marginTop: 12,
   },
 });

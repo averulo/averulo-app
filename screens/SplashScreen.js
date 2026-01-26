@@ -1,11 +1,26 @@
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
+import { Audio } from 'expo-av';
 
 const SplashScreen = ({ navigation }) => {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    // Play splash sound
+    async function playSound() {
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          require('../assets/sounds/splash-sound.mp3')
+        );
+        await sound.playAsync();
+      } catch (error) {
+        console.log('Splash sound error:', error);
+      }
+    }
+
+    playSound();
+
     Animated.parallel([
       Animated.timing(scaleAnim, {
         toValue: 2,

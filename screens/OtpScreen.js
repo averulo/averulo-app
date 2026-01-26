@@ -34,6 +34,7 @@ export default function OtpScreen() {
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(120);
   const [busy, setBusy] = useState(false);
+  const [resending, setResending] = useState(false);
   const inputRefs = useRef([]);
 
   // Handle missing email - render error screen instead of returning null
@@ -96,6 +97,38 @@ useEffect(() => {
     }
   };
 
+  // Handle requesting new OTP code
+  const handleRequestNewCode = async () => {
+    if (resending) return;
+    setResending(true);
+    try {
+      const res = await axios.post(`${API_BASE}/api/send-otp`, { email });
+
+      if (res.data.success) {
+        console.log("✅ New OTP sent successfully:", res.data);
+
+        // Show dev OTP in development
+        if (res.data.devOtp && __DEV__) {
+          console.log("🧩 DEV OTP:", res.data.devOtp);
+          alert(`🧩 Dev OTP: ${res.data.devOtp}`);
+        }
+
+        // Reset timer and clear code
+        setTimer(120);
+        setCode(['', '', '', '', '', '']);
+        inputRefs.current[0]?.focus();
+        alert("A new OTP code has been sent to your email.");
+      } else {
+        alert("Failed to send new OTP. Please try again.");
+      }
+    } catch (err) {
+      console.error("❌ Resend OTP error:", err.response?.data || err.message);
+      alert("Failed to send new OTP. Please try again.");
+    } finally {
+      setResending(false);
+    }
+  };
+
   // ✅ Prevent duplicate submissions
   const handleContinue = async () => {
     if (busy) return;
@@ -115,18 +148,11 @@ useEffect(() => {
       // ✅ Save token and load user into AuthContext
       await signIn(token);
 
-      // ✅ Route based on KYC status
-      if (user.kycStatus === 'VERIFIED') {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'MainTabs' }],
-        });
-      } else {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'UserVerification', params: { email: user.email } }],
-        });
-      }
+      // ✅ Always route to MainTabs - KYC check happens at booking
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs' }],
+      });
     } catch (err) {
       console.error("❌ Verify OTP error:", err.response?.data || err.message);
       alert(err.response?.data?.message || "Invalid or expired OTP. Please try again.");
@@ -159,7 +185,7 @@ useEffect(() => {
             </Text>
 
             <Text style={styles.noteText}>
-              Don't have access to this Number. <Text style={styles.link}>Use a different Email address</Text>
+              Don't have access to this email? <Text style={styles.link}>Use a different Email address</Text>
             </Text>
 
             {/* OTP Inputs */}
@@ -179,9 +205,21 @@ useEffect(() => {
               ))}
             </View>
 
-            <Text style={styles.timerText}>
-              You can request a code in <Text style={styles.timerBold}>{timer} secs</Text>
-            </Text>
+            {timer > 0 ? (
+              <Text style={styles.timerText}>
+                You can request a code in <Text style={styles.timerBold}>{timer} secs</Text>
+              </Text>
+            ) : (
+              <TouchableOpacity
+                style={styles.resendButton}
+                onPress={handleRequestNewCode}
+                disabled={resending}
+              >
+                <Text style={styles.resendButtonText}>
+                  {resending ? "Sending..." : "Request new code"}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </ScrollView>
 
@@ -286,6 +324,18 @@ const styles = StyleSheet.create({
   timerBold: {
     fontWeight: '700',
     color: TEXT_DARK,
+  },
+  resendButton: {
+    alignSelf: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    marginBottom: 32,
+  },
+  resendButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: PRIMARY_DARK,
+    textDecorationLine: 'underline',
   },
   continueBtn: {
     backgroundColor: PRIMARY_DARK,

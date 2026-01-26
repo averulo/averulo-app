@@ -1,19 +1,21 @@
 // screens/host/CreatePropertyScreen.js
 import { useNavigation } from "@react-navigation/native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import * as Location from "expo-location";
 import {
   Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  Image,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import Constants from "expo-constants";
@@ -91,6 +93,36 @@ export default function CreatePropertyScreen() {
   const [longitude, setLongitude] = useState(3.3792);
   const [selectedAmenities, setSelectedAmenities] = useState([]);
   const [focusedField, setFocusedField] = useState("");
+  const [locationLoading, setLocationLoading] = useState(false);
+
+  // Get user's current location when on step 6
+  useEffect(() => {
+    if (step === 6) {
+      getCurrentLocation();
+    }
+  }, [step]);
+
+  const getCurrentLocation = async () => {
+    try {
+      setLocationLoading(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert("Permission Denied", "Location permission is needed to show your current location on the map");
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      setLatitude(location.coords.latitude);
+      setLongitude(location.coords.longitude);
+    } catch (error) {
+      console.log("Location error:", error);
+    } finally {
+      setLocationLoading(false);
+    }
+  };
 
   // Media upload states (step 8)
   const [exteriorVideos, setExteriorVideos] = useState([]);
@@ -219,9 +251,33 @@ export default function CreatePropertyScreen() {
       setStep(4);
     } else if (step === 4) {
       if (!phoneNumber.trim() || !hotelEmail.trim()) {
-        alert("Please fill in required contact information");
+        Alert.alert("Missing Info", "Please fill in phone number and email");
         return;
       }
+
+      // Validate phone number (10-15 digits)
+      const phoneDigits = phoneNumber.replace(/\D/g, '');
+      if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+        Alert.alert("Invalid Phone", "Phone number must be 10-15 digits");
+        return;
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(hotelEmail.trim())) {
+        Alert.alert("Invalid Email", "Please enter a valid email address (e.g. hotel@example.com)");
+        return;
+      }
+
+      // Validate website URL format (if provided)
+      if (website.trim()) {
+        const urlRegex = /^(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/;
+        if (!urlRegex.test(website.trim())) {
+          Alert.alert("Invalid Website", "Please enter a valid website URL (e.g. www.hotel.com)");
+          return;
+        }
+      }
+
       setStep(5);
     } else if (step === 5) {
       if (!hotelType) {
@@ -359,7 +415,7 @@ export default function CreatePropertyScreen() {
   const progress = step / 12; // 12 total steps
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -579,7 +635,7 @@ export default function CreatePropertyScreen() {
                 <View style={styles.mapPlaceholder}>
                   <Ionicons name="location" size={48} color={PRIMARY_DARK} />
                   <Text style={styles.mapPlaceholderText}>
-                    Interactive map available in production build
+                    {locationLoading ? "Getting your location..." : "Interactive map available in production build"}
                   </Text>
                 </View>
               )}
@@ -741,34 +797,50 @@ export default function CreatePropertyScreen() {
             // Step 10: Room Media Upload
             <>
               <Text style={styles.question}>Let's add some media of each room type</Text>
-              <View style={styles.roomMediaList}>
-                {ROOM_TYPES.filter(room => (roomCounts[room.id] || 0) > 0).map((room) => (
-                  <RoomMediaCard
-                    key={room.id}
-                    label={room.label}
-                    count={roomCounts[room.id]}
-                    media={roomMedia[room.id] || []}
-                    onUpload={() => handleUploadRoomMedia(room.id)}
-                    onReorder={() => handleReorderRoomMedia(room.id, room.label)}
-                  />
-                ))}
-              </View>
+              {ROOM_TYPES.filter(room => (roomCounts[room.id] || 0) > 0).length === 0 ? (
+                <View style={styles.emptyStateContainer}>
+                  <Ionicons name="bed-outline" size={60} color={TEXT_MEDIUM} />
+                  <Text style={styles.emptyStateText}>No rooms selected</Text>
+                  <Text style={styles.emptyStateHint}>Go back to add room types, or continue to the next step</Text>
+                </View>
+              ) : (
+                <View style={styles.roomMediaList}>
+                  {ROOM_TYPES.filter(room => (roomCounts[room.id] || 0) > 0).map((room) => (
+                    <RoomMediaCard
+                      key={room.id}
+                      label={room.label}
+                      count={roomCounts[room.id]}
+                      media={roomMedia[room.id] || []}
+                      onUpload={() => handleUploadRoomMedia(room.id)}
+                      onReorder={() => handleReorderRoomMedia(room.id, room.label)}
+                    />
+                  ))}
+                </View>
+              )}
             </>
           ) : step === 11 ? (
             // Step 11: Room Pricing
             <>
               <Text style={styles.question}>Add prices</Text>
-              <View style={styles.pricingList}>
-                {ROOM_TYPES.filter(room => (roomCounts[room.id] || 0) > 0).map((room) => (
-                  <RoomPricingCard
-                    key={room.id}
-                    label={room.label}
-                    media={roomMedia[room.id] || []}
-                    price={roomPrices[room.id] || ""}
-                    onPriceChange={(price) => handleRoomPriceChange(room.id, price)}
-                  />
-                ))}
-              </View>
+              {ROOM_TYPES.filter(room => (roomCounts[room.id] || 0) > 0).length === 0 ? (
+                <View style={styles.emptyStateContainer}>
+                  <Ionicons name="pricetag-outline" size={60} color={TEXT_MEDIUM} />
+                  <Text style={styles.emptyStateText}>No rooms to price</Text>
+                  <Text style={styles.emptyStateHint}>Go back to add room types, or continue to the next step</Text>
+                </View>
+              ) : (
+                <View style={styles.pricingList}>
+                  {ROOM_TYPES.filter(room => (roomCounts[room.id] || 0) > 0).map((room) => (
+                    <RoomPricingCard
+                      key={room.id}
+                      label={room.label}
+                      media={roomMedia[room.id] || []}
+                      price={roomPrices[room.id] || ""}
+                      onPriceChange={(price) => handleRoomPriceChange(room.id, price)}
+                    />
+                  ))}
+                </View>
+              )}
             </>
           ) : step === 12 ? (
             // Step 12: What makes your hotel unique
@@ -1032,7 +1104,7 @@ function RoomPricingCard({ label, media, price, onPriceChange }) {
 
       {/* Price Input */}
       <View style={styles.priceInputContainer}>
-        <Text style={styles.priceCurrency}>$</Text>
+        <Text style={styles.priceCurrency}>₦</Text>
         <TextInput
           style={styles.priceInput}
           value={price}
@@ -1048,16 +1120,20 @@ function RoomPricingCard({ label, media, price, onPriceChange }) {
 
 // Room Media Card Component
 function RoomMediaCard({ label, count, media, onUpload, onReorder }) {
+  const firstImage = media && media.length > 0 ? media[0] : null;
+
   return (
     <View style={styles.roomMediaCard}>
       {/* Preview Image or Placeholder */}
-      {media.length > 0 ? (
+      {firstImage ? (
         <View style={styles.roomMediaPreview}>
-          <View style={styles.roomMediaImageContainer}>
-            {/* Show first uploaded image as preview */}
-            <View style={styles.roomMediaPlaceholder}>
-              <Ionicons name="image" size={40} color={TEXT_MEDIUM} />
-            </View>
+          <Image
+            source={{ uri: firstImage.uri || firstImage }}
+            style={styles.roomMediaImage}
+            resizeMode="cover"
+          />
+          <View style={styles.mediaCountBadge}>
+            <Text style={styles.mediaCountText}>{media.length} photos</Text>
           </View>
         </View>
       ) : (
@@ -1065,6 +1141,7 @@ function RoomMediaCard({ label, count, media, onUpload, onReorder }) {
           <View style={styles.roomMediaImageContainer}>
             <View style={styles.roomMediaPlaceholder}>
               <Ionicons name="image-outline" size={40} color={TEXT_MEDIUM} />
+              <Text style={styles.uploadHintText}>No photos yet</Text>
             </View>
           </View>
         </View>
@@ -1109,7 +1186,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
 
   backBtn: {
@@ -1625,6 +1703,58 @@ const styles = StyleSheet.create({
   roomMediaPlaceholder: {
     justifyContent: "center",
     alignItems: "center",
+  },
+
+  roomMediaImage: {
+    width: "100%",
+    height: "100%",
+  },
+
+  mediaCountBadge: {
+    position: "absolute",
+    bottom: 10,
+    right: 10,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+
+  mediaCountText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontFamily: "Manrope-Medium",
+  },
+
+  uploadHintText: {
+    color: TEXT_MEDIUM,
+    fontSize: 12,
+    fontFamily: "Manrope-Regular",
+    marginTop: 8,
+  },
+
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+  },
+
+  emptyStateText: {
+    fontSize: 18,
+    fontFamily: "Manrope-SemiBold",
+    color: TEXT_DARK,
+    marginTop: 16,
+    textAlign: "center",
+  },
+
+  emptyStateHint: {
+    fontSize: 14,
+    fontFamily: "Manrope-Regular",
+    color: TEXT_MEDIUM,
+    marginTop: 8,
+    textAlign: "center",
   },
 
   roomMediaInfo: {

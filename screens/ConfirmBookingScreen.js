@@ -2,6 +2,7 @@
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import {
+  Alert,
   Image,
   ScrollView,
   Text,
@@ -9,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "../hooks/useAuth";
 
 const PRIMARY = "#000A63";
 const MUTED = "#6B7280";
@@ -17,6 +19,7 @@ const BORDER_COLOR = "#E5E7EB";
 export default function ConfirmBookingScreen() {
   const navigation = useNavigation();
   const route = useRoute();
+  const { user } = useAuth();
 
   const {
     property,
@@ -226,7 +229,7 @@ export default function ConfirmBookingScreen() {
               fontFamily: "Manrope-Bold",
             }}
           >
-            {booking.bookingCode || booking.id || "495060735"}
+            {booking.bookingCode || booking.id?.slice(0, 9).toUpperCase() || "PENDING"}
           </Text>
         </View>
 
@@ -256,7 +259,7 @@ export default function ConfirmBookingScreen() {
                 fontFamily: "Manrope-Medium",
               }}
             >
-              {checkIn || "10/12/2024"}
+              {checkIn || "Select date"}
             </Text>
           </View>
 
@@ -278,7 +281,7 @@ export default function ConfirmBookingScreen() {
                 fontFamily: "Manrope-Medium",
               }}
             >
-              {checkOut || "15/6/2024"}
+              {checkOut || "Select date"}
             </Text>
           </View>
 
@@ -576,7 +579,7 @@ export default function ConfirmBookingScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* BOOK NOW BUTTON - Fake Simulation */}
+        {/* BOOK NOW BUTTON - Check KYC before proceeding */}
         <TouchableOpacity
           style={{
             backgroundColor: PRIMARY,
@@ -584,7 +587,42 @@ export default function ConfirmBookingScreen() {
             borderRadius: 12,
           }}
           onPress={() => {
-            // Navigate directly to booking in progress (fake payment simulation)
+            // Check KYC status before allowing payment
+            if (user?.kycStatus !== 'VERIFIED') {
+              Alert.alert(
+                "Verification Required",
+                "Please complete identity verification to make a booking.",
+                [
+                  {
+                    text: "Cancel",
+                    style: "cancel"
+                  },
+                  {
+                    text: "Verify Now",
+                    onPress: () => navigation.navigate("UserVerification", {
+                      email: user?.email,
+                      returnTo: 'ConfirmBookingScreen',
+                      bookingData: {
+                        bookingId: booking.id,
+                        totalAmount: booking.totalAmount || totalNGN * 100,
+                        property,
+                        booking,
+                        checkIn,
+                        checkOut,
+                        guests: numGuests,
+                        guestName,
+                        email,
+                        phone,
+                        notes,
+                      }
+                    })
+                  }
+                ]
+              );
+              return;
+            }
+
+            // User is verified, proceed to booking
             navigation.navigate("BookingInProgressScreen", {
               bookingId: booking.id,
               totalAmount: booking.totalAmount || totalNGN * 100,

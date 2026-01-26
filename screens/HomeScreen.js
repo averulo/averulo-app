@@ -1,6 +1,7 @@
 // screens/HomeScreen.js
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useState } from "react";
 import {
   Image,
   ScrollView,
@@ -32,6 +33,8 @@ export default function HomeScreen() {
   const navigation = useNavigation();
   const { user } = useAuth();
   const email = user?.email || "johnpeter200@gmail.com";
+  const [selectedFilter, setSelectedFilter] = useState("All");
+  const isHost = user?.role === "HOST" || user?.role === "ADMIN";
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
@@ -42,22 +45,50 @@ export default function HomeScreen() {
       >
         {/* ─────────── TOP ROW ─────────── */}
         <View style={styles.topRow}>
-          <View style={styles.avatar}>
+          <TouchableOpacity
+            style={styles.avatar}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate("ProfileScreen")}
+          >
             <Text style={styles.avatarText}>
               {email[0]?.toUpperCase()}
             </Text>
-          </View>
+          </TouchableOpacity>
 
-          <View style={{ flex: 1 }}>
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate("ProfileScreen")}
+          >
             <Text style={styles.welcomeSmall}>Welcome!</Text>
             <Text style={styles.welcomeEmail}>{email}</Text>
-          </View>
+          </TouchableOpacity>
 
-          <TouchableOpacity style={styles.iconSquare}>
+          {isHost && (
+            <TouchableOpacity
+              style={styles.switchToHostButton}
+              onPress={() => {
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'HostDashboardScreen' }],
+                });
+              }}
+            >
+              <Ionicons name="swap-horizontal" size={18} color={PRIMARY_DARK} />
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={styles.iconSquare}
+            onPress={() => navigation.navigate("NotificationsScreen")}
+          >
             <Ionicons name="notifications-outline" size={20} color={PRIMARY_DARK} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.iconSquare, { marginLeft: 8 }]}>
+          <TouchableOpacity
+            style={[styles.iconSquare, { marginLeft: 8 }]}
+            onPress={() => navigation.navigate("SettingsScreen")}
+          >
             <Ionicons name="options-outline" size={20} color={PRIMARY_DARK} />
           </TouchableOpacity>
         </View>
@@ -74,11 +105,31 @@ export default function HomeScreen() {
 
         {/* ─────────── FILTER CHIPS ─────────── */}
         <View style={styles.filterRow}>
-          <FilterChip label="All" active />
-          <FilterChip label="Popular" />
-          <FilterChip label="Price" />
-          <FilterChip label="Amenities" />
-          <FilterChip label="Type" />
+          <FilterChip
+            label="All"
+            active={selectedFilter === "All"}
+            onPress={() => setSelectedFilter("All")}
+          />
+          <FilterChip
+            label="Popular"
+            active={selectedFilter === "Popular"}
+            onPress={() => setSelectedFilter("Popular")}
+          />
+          <FilterChip
+            label="Price"
+            active={selectedFilter === "Price"}
+            onPress={() => setSelectedFilter("Price")}
+          />
+          <FilterChip
+            label="Amenities"
+            active={selectedFilter === "Amenities"}
+            onPress={() => setSelectedFilter("Amenities")}
+          />
+          <FilterChip
+            label="Type"
+            active={selectedFilter === "Type"}
+            onPress={() => setSelectedFilter("Type")}
+          />
         </View>
 
         {/* ─────────── COMPLETE PROFILE CARD ─────────── */}
@@ -88,9 +139,19 @@ export default function HomeScreen() {
             <Ionicons name="close" size={18} color="#9CA3AF" />
           </View>
 
-          <ProfileRow label="Phone Number" />
-          <ProfileRow label="Profile" />
-          <ProfileRow label="Recommendation" red />
+          <ProfileRow
+            label="Phone Number"
+            onPress={() => navigation.navigate("ProfileScreen")}
+          />
+          <ProfileRow
+            label="Profile"
+            onPress={() => navigation.navigate("ProfileScreen")}
+          />
+          <ProfileRow
+            label="Recommendation"
+            red
+            onPress={() => navigation.navigate("ProfileScreen")}
+          />
         </View>
 
         {/* ─────────── RECOMMEND HOTELS ─────────── */}
@@ -309,17 +370,21 @@ export default function HomeScreen() {
 
 /* ───────────────────── COMPONENTS — EXACTLY SAME AS BEFORE ───────────────────── */
 
-function FilterChip({ label, active }) {
+function FilterChip({ label, active, onPress }) {
   return (
-    <View style={[styles.filterChip, active && { backgroundColor: PRIMARY_DARK }]}>
+    <TouchableOpacity
+      style={[styles.filterChip, active && { backgroundColor: PRIMARY_DARK }]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
       <Text style={[styles.filterText, active && { color: "#fff" }]}>{label}</Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
-function ProfileRow({ label, red }) {
+function ProfileRow({ label, red, onPress }) {
   return (
-    <View style={styles.profileRow}>
+    <TouchableOpacity style={styles.profileRow} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.profileLeft}>
         <Ionicons name="document-text-outline" size={16} color="#111827" />
         <Text style={styles.profileRowText}>{label}</Text>
@@ -329,7 +394,7 @@ function ProfileRow({ label, red }) {
         size={18}
         color={red ? "#EF4444" : "#16A34A"}
       />
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -421,6 +486,17 @@ const styles = StyleSheet.create({
     backgroundColor: BG_GRAY,
     justifyContent: "center",
     alignItems: "center",
+  },
+  switchToHostButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: BG_GRAY,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: PRIMARY_DARK,
+    marginRight: 8,
   },
 
   searchBar: {
