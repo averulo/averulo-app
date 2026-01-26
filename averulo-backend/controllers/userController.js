@@ -122,6 +122,8 @@ export async function getPendingKycUsers(req, res) {
 
 /**
  * POST /api/users/kyc/upload
+ * Upload ID photos (Driver's License or Passport)
+ * Auto-verifies for demo purposes
  */
 export async function uploadKycDocs(req, res) {
   try {
@@ -136,7 +138,7 @@ export async function uploadKycDocs(req, res) {
     const updatedUser = await prisma.user.update({
       where: { id: req.user.sub },
       data: {
-        kycStatus: "PENDING",
+        kycStatus: "VERIFIED", // Auto-verify for demo
         kycType: idType,
         kycFrontUrl: frontPath,
         kycBackUrl: backPath,
@@ -145,11 +147,44 @@ export async function uploadKycDocs(req, res) {
 
     res.json({
       ok: true,
-      message: "KYC submitted successfully",
+      message: "Identity verified successfully",
       user: updatedUser,
     });
   } catch (err) {
     console.error("KYC upload failed:", err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+/**
+ * POST /api/users/kyc/submit-nin
+ * Submit NIN for verification
+ * Auto-verifies for demo purposes
+ */
+export async function submitNin(req, res) {
+  try {
+    const { nin } = req.body;
+    if (!nin) return res.status(400).json({ error: "NIN is required" });
+    if (!/^\d{11}$/.test(nin)) {
+      return res.status(400).json({ error: "NIN must be 11 numeric digits" });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: req.user.sub },
+      data: {
+        kycStatus: "VERIFIED", // Auto-verify for demo
+        kycType: "national-id",
+        kycNin: nin,
+      },
+    });
+
+    res.json({
+      ok: true,
+      message: "Identity verified successfully",
+      user: updatedUser,
+    });
+  } catch (err) {
+    console.error("NIN submission failed:", err);
     res.status(500).json({ error: err.message });
   }
 }

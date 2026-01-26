@@ -19,7 +19,7 @@ const PRIMARY_BLUE = "#0094FF";
 
 export default function TakePhotoOfIDScreen({ route }) {
   const navigation = useNavigation();
-  const { idType } = route.params || {};
+  const { idType, returnTo, bookingData } = route.params || {};
   const { token, refreshUser } = useAuth();
 
   const [frontPhoto, setFrontPhoto] = useState(null);
@@ -63,49 +63,33 @@ export default function TakePhotoOfIDScreen({ route }) {
 
     try {
       setSubmitting(true);
-      Alert.alert("Uploading", "Please wait while we upload your ID...");
 
-      const result = await uploadKyc(token, idType || "UNKNOWN", frontPhoto, backPhoto);
+      const result = await uploadKyc(token, idType || "drivers-license", frontPhoto, backPhoto);
       console.log("✅ KYC Upload result:", result);
 
       await refreshUser();
 
-      // If this is host onboarding, navigate to selfie screen
-      if (idType === "HOST_ID") {
-        setSubmitting(false);
-        navigation.navigate("TakePhotoOfPassport");
-      } else {
-        // Regular guest KYC - show host prompt
-        Alert.alert(
-          "Success!",
-          "Your KYC has been submitted for verification!\n\nWould you like to become a host and start earning?",
-          [
-            {
-              text: "Not Now",
-              style: "cancel",
-              onPress: () => {
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: "MainTabs" }],
-                });
-              },
-            },
-            {
-              text: "Become a Host",
-              onPress: () => {
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: "MainTabs" }],
-                });
-                // Navigate to host onboarding after a brief delay
-                setTimeout(() => {
-                  navigation.navigate("BecomeHostScreen");
-                }, 500);
-              },
-            },
-          ]
-        );
-      }
+      // Show success and navigate
+      Alert.alert("Success", "Identity verified successfully!", [
+        {
+          text: "OK",
+          onPress: () => {
+            // If we came from booking flow, return there
+            if (returnTo === "ConfirmBooking" && bookingData) {
+              navigation.navigate("ConfirmBooking", bookingData);
+            } else if (idType === "HOST_ID") {
+              // If this is host onboarding, navigate to selfie screen
+              navigation.navigate("TakePhotoOfPassport");
+            } else {
+              // Regular flow - go to main tabs
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "MainTabs" }],
+              });
+            }
+          },
+        },
+      ]);
     } catch (err) {
       console.error("❌ KYC upload error:", err);
       Alert.alert("Error", err.message || "Failed to upload ID.");
@@ -193,7 +177,7 @@ export default function TakePhotoOfIDScreen({ route }) {
       {submitting && (
         <View style={styles.overlay}>
           <ActivityIndicator size="large" color="#fff" />
-          <Text style={styles.overlayText}>Uploading your ID...</Text>
+          <Text style={styles.overlayText}>Verifying your identity...</Text>
         </View>
       )}
     </SafeAreaView>

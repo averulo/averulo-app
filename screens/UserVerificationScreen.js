@@ -34,17 +34,22 @@ const idTypes = [
   { label: 'National Identification Number', value: 'national-id' },
 ];
 
-export default function UserVerificationScreen({ navigation }) {
+export default function UserVerificationScreen({ navigation, route }) {
   const [selectedIdType, setSelectedIdType] = useState(idTypes[0]);
   const [modalVisible, setModalVisible] = useState(false);
 
+  // Get returnTo and bookingData from route params (passed from ConfirmBookingScreen)
+  const { returnTo, bookingData } = route?.params || {};
+
   const handleContinue = () => {
+    const navParams = { idType: selectedIdType.value, returnTo, bookingData };
+
     if (selectedIdType.value === 'drivers-license') {
-      navigation.navigate('TakePhotoOfID', { idType: selectedIdType.value });
+      navigation.navigate('TakePhotoOfID', navParams);
     } else if (selectedIdType.value === 'passport') {
-      navigation.navigate('TakePhotoOfPassport');
+      navigation.navigate('TakePhotoOfPassport', navParams);
     } else if (selectedIdType.value === 'national-id') {
-      navigation.navigate('InputNIN');
+      navigation.navigate('InputNIN', navParams);
     }
   };
 

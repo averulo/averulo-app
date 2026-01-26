@@ -165,6 +165,21 @@ router.get("/me", auth(true), async (req, res) => {
 });
 
 /* ──────────────────────────────────────────────────────────────
+   My booking count (for verification check)
+   ────────────────────────────────────────────────────────────── */
+router.get("/my-count", auth(true), async (req, res) => {
+  try {
+    const count = await prisma.booking.count({
+      where: { guestId: req.user.sub },
+    });
+    res.json({ count });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch booking count", detail: err.message });
+  }
+});
+
+/* ──────────────────────────────────────────────────────────────
    Booking Analytics (Summary)
    ────────────────────────────────────────────────────────────── */
 router.get("/analytics", auth(true), async (req, res) => {

@@ -1,23 +1,68 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useState } from 'react';
-import { Alert, Platform, StyleSheet, Text, TextInput, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, Alert, Platform, StyleSheet, Text, TextInput, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { API_BASE } from '../lib/api';
+import { useAuth } from '../hooks/useAuth';
 
-export default function InputNINScreen() {
+export default function InputNINScreen({ route }) {
   const [nin, setNin] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const navigation = useNavigation();
+  const { token, refreshUser } = useAuth();
 
-  const handleContinue = () => {
+  // Get returnTo and bookingData from route params
+  const { returnTo, bookingData } = route?.params || {};
+
+  const handleContinue = async () => {
     if (!/^\d{11}$/.test(nin)) {
       Alert.alert('Invalid NIN', 'NIN must be 11 numeric digits.');
       return;
     }
 
-    navigation.navigate('SubmitPhoto', {
-      idType: 'national-id',
-      nin,
-    });
+    try {
+      setSubmitting(true);
+
+      const res = await fetch(`${API_BASE}/api/users/kyc/submit-nin`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ nin }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Submission failed');
+      }
+
+      // Refresh user data to get updated KYC status
+      await refreshUser();
+
+      Alert.alert('Success', 'Identity verified successfully!', [
+        {
+          text: 'OK',
+          onPress: () => {
+            // If we came from booking flow, return there
+            if (returnTo === 'ConfirmBooking' && bookingData) {
+              navigation.navigate('ConfirmBooking', bookingData);
+            } else {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainTabs' }],
+              });
+            }
+          },
+        },
+      ]);
+    } catch (e) {
+      Alert.alert('Error', e.message || 'Failed to submit NIN');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -42,8 +87,16 @@ export default function InputNINScreen() {
       />
 
       {/* 🚀 Submit */}
-      <TouchableOpacity style={styles.button} onPress={handleContinue}>
-        <Text style={styles.buttonText}>Submit NIN</Text>
+      <TouchableOpacity
+        style={[styles.button, submitting && styles.buttonDisabled]}
+        onPress={handleContinue}
+        disabled={submitting}
+      >
+        {submitting ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Submit NIN</Text>
+        )}
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -81,6 +134,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
+  },
+  buttonDisabled: {
+    backgroundColor: '#666',
+    opacity: 0.6,
   },
   buttonText: {
     color: '#fff',

@@ -4,13 +4,18 @@ import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../hooks/useAuth';
+import { uploadKyc } from '../lib/api';
 
 const PRIMARY_BLUE = '#0094FF';
 
-export default function TakePhotoOfPassportScreen() {
-  const [selfiePhoto, setSelfiePhoto] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+export default function TakePhotoOfPassportScreen({ route }) {
   const navigation = useNavigation();
+  const { returnTo, bookingData } = route?.params || {};
+  const { token, refreshUser } = useAuth();
+
+  const [passportPhoto, setPassportPhoto] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const openCamera = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -21,46 +26,62 @@ export default function TakePhotoOfPassportScreen() {
 
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
-      aspect: [1, 1], // Square for circular display
+      aspect: [3, 4], // Passport aspect ratio
       quality: 1,
-      cameraType: ImagePicker.CameraType.front, // Front camera for selfie
     });
 
     if (!result.canceled && result.assets?.length > 0) {
-      setSelfiePhoto(result.assets[0].uri);
+      setPassportPhoto(result.assets[0].uri);
     }
   };
 
   const handleRetake = () => {
-    setSelfiePhoto(null);
+    setPassportPhoto(null);
   };
 
-  const handleSubmit = () => {
-    if (!selfiePhoto) {
-      Alert.alert('No photo', 'Please take a selfie first');
+  const handleSubmit = async () => {
+    if (!passportPhoto) {
+      Alert.alert('No photo', 'Please take a photo of your passport first');
       return;
     }
 
-    setSubmitting(true);
-    console.log('✅ Submitting Selfie Photo:', selfiePhoto);
+    if (!token) {
+      return Alert.alert("Error", "You must be logged in to upload your passport.");
+    }
 
-    // Simulate submission delay
-    setTimeout(() => {
-      setSubmitting(false);
-      Alert.alert(
-        'Success',
-        'Your verification is complete! Now let\'s set up your property listing.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Navigate to property creation flow
-              navigation.navigate('CreatePropertyScreen');
-            },
+    try {
+      setSubmitting(true);
+
+      // Upload passport (using same photo for front/back since passport is single page)
+      const result = await uploadKyc(token, "passport", passportPhoto, passportPhoto);
+      console.log("✅ Passport Upload result:", result);
+
+      await refreshUser();
+
+      // Show success and navigate
+      Alert.alert("Success", "Identity verified successfully!", [
+        {
+          text: "OK",
+          onPress: () => {
+            // If we came from booking flow, return there
+            if (returnTo === "ConfirmBooking" && bookingData) {
+              navigation.navigate("ConfirmBooking", bookingData);
+            } else {
+              // Regular flow - go to main tabs
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "MainTabs" }],
+              });
+            }
           },
-        ]
-      );
-    }, 1500);
+        },
+      ]);
+    } catch (err) {
+      console.error("❌ Passport upload error:", err);
+      Alert.alert("Error", err.message || "Failed to upload passport.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -71,36 +92,35 @@ export default function TakePhotoOfPassportScreen() {
       </TouchableOpacity>
 
       {/* Title */}
-      <Text style={styles.title}>Take a photo of yourself</Text>
-      <Text style={styles.subtitle}>It should match with the photo in your ID</Text>
+      <Text style={styles.title}>Take a photo of your passport</Text>
+      <Text style={styles.subtitle}>Make sure the photo page is clearly visible</Text>
 
-      {/* Circular Image Preview */}
-      <View style={styles.circleWrapper}>
-        <TouchableOpacity
-          style={styles.circlePreview}
-          onPress={openCamera}
-          disabled={submitting}
-        >
-          {selfiePhoto ? (
-            <Image source={{ uri: selfiePhoto }} style={styles.circleImage} />
-          ) : (
-            <View style={styles.placeholder}>
-              <Ionicons name="person" size={80} color="#555" />
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
+      {/* Rectangular Image Preview */}
+      <TouchableOpacity
+        style={styles.imageWrapper}
+        onPress={openCamera}
+        disabled={submitting}
+      >
+        {passportPhoto ? (
+          <Image source={{ uri: passportPhoto }} style={styles.image} />
+        ) : (
+          <View style={styles.placeholder}>
+            <Ionicons name="document-text" size={60} color="#555" />
+            <Text style={styles.placeholderText}>Tap to capture passport photo page</Text>
+          </View>
+        )}
+      </TouchableOpacity>
 
       {/* Info Box */}
       <View style={styles.infoBox}>
-        <Text style={styles.infoTitle}>Center your face in the circle</Text>
+        <Text style={styles.infoTitle}>Passport Photo Page</Text>
         <Text style={styles.infoText}>
-          Center your face in the frame and we'll take the photo automatically
+          Center your passport's photo page in the frame. Make sure all text and your photo are clearly visible.
         </Text>
       </View>
 
       {/* Retake Button */}
-      {selfiePhoto && !submitting && (
+      {passportPhoto && !submitting && (
         <TouchableOpacity onPress={handleRetake} style={styles.retakeBtn}>
           <Text style={styles.retakeText}>Retake the Photo</Text>
         </TouchableOpacity>
@@ -109,8 +129,8 @@ export default function TakePhotoOfPassportScreen() {
       {/* Submit Button */}
       <TouchableOpacity
         onPress={handleSubmit}
-        style={[styles.submitButton, (!selfiePhoto || submitting) && styles.submitButtonDisabled]}
-        disabled={!selfiePhoto || submitting}
+        style={[styles.submitButton, (!passportPhoto || submitting) && styles.submitButtonDisabled]}
+        disabled={!passportPhoto || submitting}
       >
         {submitting ? (
           <ActivityIndicator color="#fff" />
@@ -118,6 +138,14 @@ export default function TakePhotoOfPassportScreen() {
           <Text style={styles.submitText}>Submit Photo</Text>
         )}
       </TouchableOpacity>
+
+      {/* Uploading Overlay */}
+      {submitting && (
+        <View style={styles.overlay}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.overlayText}>Verifying your identity...</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -148,26 +176,29 @@ const styles = StyleSheet.create({
     fontFamily: 'Manrope-Regular',
     marginBottom: 40,
   },
-  circleWrapper: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  circlePreview: {
-    width: 280,
+  imageWrapper: {
+    width: "100%",
     height: 280,
-    borderRadius: 140,
+    borderRadius: 12,
     borderWidth: 3,
-    borderColor: '#fff',
-    backgroundColor: '#1f1f1f',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
+    borderColor: "#fff",
+    backgroundColor: "#1f1f1f",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+    marginBottom: 30,
   },
   placeholder: {
     justifyContent: 'center',
     alignItems: 'center',
   },
-  circleImage: {
+  placeholderText: {
+    color: '#888',
+    fontSize: 14,
+    fontFamily: 'Manrope-Regular',
+    marginTop: 12,
+  },
+  image: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
@@ -216,5 +247,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Manrope-SemiBold',
     fontSize: 16,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  overlayText: {
+    color: "#fff",
+    fontSize: 16,
+    fontFamily: "Manrope-Regular",
+    marginTop: 12,
   },
 });

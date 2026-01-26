@@ -32,7 +32,7 @@ export default function BookingDetailsScreen() {
     phone: initialPhone,
     notes: initialNotes,
   } = route.params || {};
-  const { token } = useAuth();
+  const { token, user } = useAuth();
 
   const [checkIn, setCheckIn] = useState(initialCheckIn || "");
   const [checkOut, setCheckOut] = useState(initialCheckOut || "");
@@ -61,6 +61,48 @@ export default function BookingDetailsScreen() {
     setSpecialRequests((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // Check if user needs verification before booking
+  const checkVerificationAndProceed = async (bookingData, isDemo = false) => {
+    // Check if user has previous bookings and is not verified
+    const isVerified = user?.kycStatus === "VERIFIED";
+
+    if (!isVerified) {
+      // Check user's booking count from backend
+      try {
+        const countRes = await fetch(`${API_BASE}/api/bookings/my-count`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const countData = await countRes.json();
+        const hasBookings = countData?.count > 0;
+
+        if (hasBookings) {
+          // User has previous bookings but is not verified - require verification
+          Alert.alert(
+            "Verification Required",
+            "To make another booking, please verify your identity first.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Verify Now",
+                onPress: () => {
+                  navigation.navigate("UserVerification", {
+                    returnTo: "ConfirmBooking",
+                    bookingData: bookingData,
+                  });
+                },
+              },
+            ]
+          );
+          return false;
+        }
+      } catch (err) {
+        console.log("❌ Error checking booking count:", err);
+        // If we can't check, allow booking (first-time fallback)
+      }
+    }
+    return true;
+  };
+
   const handleContinue = async () => {
     if (!property?.id) {
       Alert.alert("Error", "Missing property id. Please go back and try again.");
@@ -84,6 +126,25 @@ export default function BookingDetailsScreen() {
         .filter((key) => specialRequests[key])
         .map((key) => key.replace(/([A-Z])/g, " $1").trim())
         .join(", ");
+
+      // Prepare booking data for verification check
+      const bookingDataForVerification = {
+        property,
+        checkIn,
+        checkOut,
+        guests,
+        guestName,
+        email,
+        phone,
+        notes: selectedRequests || notes,
+      };
+
+      // Check if verification is required (has previous bookings but not verified)
+      const canProceed = await checkVerificationAndProceed(bookingDataForVerification);
+      if (!canProceed) {
+        setSubmitting(false);
+        return;
+      }
 
       // Handle demo properties differently
       if (property.id.startsWith && property.id.startsWith('demo-')) {
