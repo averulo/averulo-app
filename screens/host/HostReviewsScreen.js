@@ -1,7 +1,7 @@
 // screens/host/HostReviewsScreen.js
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -38,11 +38,17 @@ export default function HostReviewsScreen() {
   const [replyText, setReplyText] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Track if component is mounted to prevent state updates after unmount
+  const isMountedRef = useRef(true);
+
   useEffect(() => {
-    fetchReviews();
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
-  async function fetchReviews() {
+  const fetchReviews = useCallback(async () => {
     if (!token) {
       setLoading(false);
       return;
@@ -51,15 +57,23 @@ export default function HostReviewsScreen() {
     try {
       setLoading(true);
       const data = await getHostReviews(token);
+      if (!isMountedRef.current) return;
       setReviews(data || []);
     } catch (err) {
       console.error("Failed to fetch host reviews:", err);
+      if (!isMountedRef.current) return;
       Alert.alert("Error", err.message || "Failed to load reviews");
       setReviews([]);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
-  }
+  }, [token]);
+
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
 
   async function handleSubmitReply(reviewId) {
     if (!replyText.trim()) {

@@ -50,12 +50,19 @@ export default function SearchScreen() {
 
   // 🎯 Fetch location suggestions with Mapbox
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    // Clear previous debounce timeout
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+
     if (!search.trim()) {
       setLocationResults([]);
       setResults([]);
       return;
     }
+
+    let isCancelled = false;
 
     debounceRef.current = setTimeout(async () => {
       try {
@@ -64,23 +71,37 @@ export default function SearchScreen() {
         if (searchMode === "location") {
           // Search for places using Mapbox
           const places = await searchPlaces(search, userLocation);
+          if (isCancelled) return;
           setLocationResults(places);
         } else {
           // Search for properties
           const res = await fetch(`${API_BASE}/api/properties?q=${encodeURIComponent(search)}`);
           const json = await res.json();
+          if (isCancelled) return;
           const items = Array.isArray(json.items) ? json.items : [];
           setResults(items);
         }
       } catch (err) {
         console.error("Search failed:", err);
+        if (isCancelled) return;
         setLocationResults([]);
         setResults([]);
       } finally {
-        setLoading(false);
+        if (!isCancelled) {
+          setLoading(false);
+        }
       }
     }, 400);
-  }, [search, searchMode]);
+
+    // Cleanup function to cancel pending operations
+    return () => {
+      isCancelled = true;
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+    };
+  }, [search, searchMode, userLocation]);
 
   // 🎯 Handle "Use My Location" button
   async function handleUseMyLocation() {

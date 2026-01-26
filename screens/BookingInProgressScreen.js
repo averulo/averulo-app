@@ -1,5 +1,5 @@
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     SafeAreaView,
     ScrollView,
@@ -45,6 +45,9 @@ export default function BookingInProgressScreen() {
   const [timeLeft, setTimeLeft] = useState(15 * 60); // 15 minutes
   const [confirmed, setConfirmed] = useState(false);
 
+  // Store timer IDs for cleanup
+  const stageTimersRef = useRef([]);
+
   // COUNTDOWN
   useEffect(() => {
     const timer = setInterval(() => {
@@ -53,13 +56,20 @@ export default function BookingInProgressScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  // FAKE STAGES - simulate booking confirmation
+  // FAKE STAGES - simulate booking confirmation with proper cleanup
   useEffect(() => {
-    setTimeout(() => setStage(2), 2000);
-    setTimeout(() => {
+    const timer1 = setTimeout(() => setStage(2), 2000);
+    const timer2 = setTimeout(() => {
       setStage(3);
       setConfirmed(true);
     }, 5000);
+
+    stageTimersRef.current = [timer1, timer2];
+
+    return () => {
+      // Clear all timers on unmount to prevent memory leaks
+      stageTimersRef.current.forEach(clearTimeout);
+    };
   }, []);
 
   const formatTime = () => {

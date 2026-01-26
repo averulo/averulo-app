@@ -114,9 +114,11 @@ export default function SignUpScreen() {
 
           {showPicker && (
             <DateTimePicker
-              value={dob || new Date()}
+              value={dob || new Date(new Date().setFullYear(new Date().getFullYear() - 18))}
               mode="date"
               display="default"
+              maximumDate={new Date(new Date().setFullYear(new Date().getFullYear() - 18))}
+              minimumDate={new Date(1900, 0, 1)}
               onChange={(event, selectedDate) => {
                 setShowPicker(false);
                 if (selectedDate) setDob(selectedDate);

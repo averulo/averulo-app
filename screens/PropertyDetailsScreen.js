@@ -1,7 +1,7 @@
 // screens/PropertyDetailsScreen.js
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -101,6 +101,16 @@ export default function PropertyDetailsScreen() {
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
 
+  // Track if component is mounted to prevent state updates after unmount
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   // DEBUG (helps you see what is coming in)
   useEffect(() => {
     console.log("PropertyDetailsScreen params:", params);
@@ -136,13 +146,17 @@ export default function PropertyDetailsScreen() {
         setLoading(true);
         console.log("📡 Fetching property from backend with ID:", id);
         const data = await getProperty(id);
+        if (!isMountedRef.current) return;
         setProp(data);
         setFavorite(Boolean(data?.isFavorite));
       } catch (err) {
         console.log("❌ Failed to load property:", err?.message);
+        if (!isMountedRef.current) return;
         Alert.alert("Error", "Failed to load property details");
       } finally {
-        setLoading(false);
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
     })();
   }, [id, passedProperty]);
@@ -163,12 +177,16 @@ export default function PropertyDetailsScreen() {
       try {
         setReviewsLoading(true);
         const data = await getPropertyReviews(propertyId);
+        if (!isMountedRef.current) return;
         setReviews(data || []);
       } catch (err) {
         console.log("❌ Failed to load reviews:", err?.message);
+        if (!isMountedRef.current) return;
         setReviews([]);
       } finally {
-        setReviewsLoading(false);
+        if (isMountedRef.current) {
+          setReviewsLoading(false);
+        }
       }
     })();
   }, [prop?.id, id]);

@@ -35,7 +35,14 @@ export function requireRole(...roles) {
   };
 }
 
-// Middleware to authenticate users via Bearer token
+// Middleware to restrict access to admin users only
+export function adminOnly(req, res, next) {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+  if (req.user.role !== 'ADMIN') {
+    return res.status(403).json({ error: 'Admins only' });
+  }
+  next();
+}
 // 
 
 

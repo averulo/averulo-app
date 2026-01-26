@@ -30,15 +30,30 @@ export default function OtpScreen() {
 
   // ✅ Ensure email exists
   const { email, devOtp } = route.params || {};
-  if (!email) {
-    alert("Missing email — please go back and try again.");
-    return null;
-  }
 
   const [code, setCode] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(120);
   const [busy, setBusy] = useState(false);
   const inputRefs = useRef([]);
+
+  // Handle missing email - render error screen instead of returning null
+  if (!email) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color={TEXT_MEDIUM} />
+          <Text style={styles.errorTitle}>Missing Email</Text>
+          <Text style={styles.errorSubtitle}>Please go back and try again.</Text>
+          <TouchableOpacity
+            style={styles.errorButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.errorButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Mask email function
   const maskEmail = (email) => {
@@ -288,5 +303,39 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     fontFamily: 'System',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: TEXT_DARK,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorSubtitle: {
+    fontSize: 14,
+    color: TEXT_MEDIUM,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  errorButton: {
+    backgroundColor: PRIMARY_DARK,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  errorButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

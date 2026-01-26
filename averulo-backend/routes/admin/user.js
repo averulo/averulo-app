@@ -1,6 +1,6 @@
 // routes/admin/users.js
 import express from "express";
-import { auth } from "../../lib/auth.js";
+import { auth, adminOnly } from "../../lib/auth.js";
 import { prisma } from "../../lib/prisma.js";
 
 const router = express.Router();
@@ -19,6 +19,11 @@ router.get("/users", auth(true), async (req, res) => {
       search = "",
     } = req.query;
 
+    // Validate sortBy to prevent Prisma injection
+    const allowedSortFields = ["createdAt", "updatedAt", "email", "name", "role"];
+    const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+    const safeSortOrder = sortOrder === "asc" ? "asc" : "desc";
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const where = {};
@@ -32,7 +37,7 @@ router.get("/users", auth(true), async (req, res) => {
 
     const users = await prisma.user.findMany({
       where,
-      orderBy: { [sortBy]: sortOrder },
+      orderBy: { [safeSortBy]: safeSortOrder },
       skip,
       take: parseInt(limit),
       select: {

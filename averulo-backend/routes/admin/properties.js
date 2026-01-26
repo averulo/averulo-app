@@ -23,6 +23,11 @@ router.get("/", auth(true), async (req, res) => {
       search = "",
     } = req.query;
 
+    // Validate sortBy to prevent Prisma injection
+    const allowedSortFields = ["createdAt", "updatedAt", "title", "city", "nightlyPrice", "avgRating", "status"];
+    const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+    const safeSortOrder = sortOrder === "asc" ? "asc" : "desc";
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const where = {};
 
@@ -40,7 +45,7 @@ router.get("/", auth(true), async (req, res) => {
         where,
         skip,
         take: parseInt(limit),
-        orderBy: { [sortBy]: sortOrder },
+        orderBy: { [safeSortBy]: safeSortOrder },
         include: {
           host: { select: { id: true, email: true } },
         },

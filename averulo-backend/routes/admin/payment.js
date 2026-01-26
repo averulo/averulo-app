@@ -27,8 +27,10 @@ router.get("/", adminOnly, async (req, res) => {
     // 🔄 Status filter
     if (req.query.status) where.status = req.query.status;
 
-    // 🧭 Sort options
+    // 🧭 Sort options with validation to prevent Prisma injection
+    const allowedSortFields = ["createdAt", "updatedAt", "amount", "status"];
     const sortBy = req.query.sortBy || "createdAt";
+    const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
     const sortOrder = req.query.sortOrder === "asc" ? "asc" : "desc";
 
     const [items, total] = await Promise.all([
@@ -36,7 +38,7 @@ router.get("/", adminOnly, async (req, res) => {
         where,
         skip,
         take: limit,
-        orderBy: { [sortBy]: sortOrder },
+        orderBy: { [safeSortBy]: sortOrder },
         include: {
           booking: {
             include: { user: true, property: true },
