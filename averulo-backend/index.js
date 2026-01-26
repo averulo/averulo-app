@@ -152,32 +152,26 @@ app.post("/api/send-otp", otpLimiter, async (req, res) => {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   otpStore[email] = { code: otp, expires: Date.now() + 10 * 60 * 1000 };
 
-  try {
-    const transporter = getTransporter();
-    if (transporter) {
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || '"Averulo" <no-reply@averulo.local>',
-        to: email,
-        subject: "Your OTP Code",
-        html: `<h3>Your OTP is: ${otp}</h3>`,
-      });
-
-      // Include devOtp in development mode
-      const response = { success: true, message: "OTP sent!" };
-      if (isDev) {
-        response.devOtp = otp;
-        console.log('🧩 DEV MODE: OTP for', email, ':', otp);
-      }
-      return res.status(200).json(response);
-    }
-    throw new Error("SMTP not configured");
-  } catch (err) {
-    console.warn("Email send failed:", err.message);
-    if (isDev) {
-      return res.status(200).json({ success: true, message: "OTP (dev mode)", devOtp: otp });
-    }
-    return res.status(500).json({ success: false, message: "Failed to send OTP" });
+  // Send email in background (non-blocking) to avoid timeout delays
+  const transporter = getTransporter();
+  if (transporter) {
+    transporter.sendMail({
+      from: process.env.EMAIL_FROM || '"Averulo" <no-reply@averulo.local>',
+      to: email,
+      subject: "Your OTP Code",
+      html: `<h3>Your OTP is: ${otp}</h3>`,
+    }).then(() => {
+      console.log('✅ Email sent to', email);
+    }).catch((err) => {
+      console.warn("Email send failed:", err.message);
+    });
   }
+
+  // Return immediately with OTP (always include devOtp for now)
+  const response = { success: true, message: "OTP sent!" };
+  response.devOtp = otp; // Always include for demo purposes
+  console.log('🧩 OTP for', email, ':', otp);
+  return res.status(200).json(response);
 });
 
 // verify OTP
